@@ -1,6 +1,6 @@
 
 #include "zigzagzoe.h"
-#include "rainbow.h"
+#include "ansicolor.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
@@ -31,7 +31,7 @@ static bool play_again(z3_t *game) {
 int main() {
     srand(time(NULL));
     int type;
-    printf(ANSI_ERASE_DISPLAY "HvH, HvC, CvH, CvC (1, 2, 3, 4)? ");
+    printf("%sHvH, HvC, CvH, CvC (1, 2, 3, 4)? ", ANSI.erase);
     scanf(" %d", &type);
     z3_t *game = z3_init(false, false, 4);
     switch(type) {
