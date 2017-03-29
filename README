@@ -1,0 +1,26 @@
+
+
+TODO (29DEC2016)
+- finish z3_reset/z3_free
+- rename heuristic_win to heuristic_max
+- use int16_t instead of int????
+
+to do list (new)
+- double check all macros (definitions, function-like, etc.)
+- finish game_play and game_rematch
+
+
+to do list
+- add checks that values are appropriate for all files (e.g, in connectn.c, nconnect cannot exceed nrows, etc.)
+- polish play_again() in play-connectn.c (i.e., add more input checks)
+- add count of times actually chosen by negamax_move in transpose_t
+    - prefer move of (node_t best[]) that has been chosen least often
+- after every best option of the root node is stored in the transposition table with a depth
+    equal to the depth of the transposition table's entry for the root node, increase the default negamax search depth by 1
+
+to do list (2017-03-02)
+- fix whatever the problem was with the vector holding the moves in game_move
+    - is it a systemic problem with `vector`?
+    - or is it just a usage problem (e.g., freeing game_state while vector still holds node)
+- color the mega block when printing
+
