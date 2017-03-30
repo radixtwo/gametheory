@@ -3,6 +3,15 @@
 // stratify factors: sort by heuristic, then by look at forcing moves first (forceful prioritized over heuristic)
 // sterile == stalemate == draw; stratify should deprioritize stale nodes
 
+//definitions
+//m,n,k
+//potency
+//board
+//previous
+//sub-board
+//mega-board
+//block
+
 #include "zigzagzoe.h"
 #include "negamax.h"
 #include "ansicolor.h"
@@ -41,47 +50,62 @@ typedef struct _z3_config_t {
     uint8_t previous;
 } z3_config_t;
 
-// stores previous, mega, & blocks
+// stores previous, mega-block, & board
 // width varies with nrows, ncolumns, & nconnect
 typedef char *z3_node_t;
 //typedef node_t z3_node_t;
 
-static char z3_tile_player(z3_config_t const *config, player_t player) {
-    return player == OAKLEY ? config->tile_p1 : config->tile_p2;
-}
 
-static uint8_t z3_nslots(z3_config_t const *config) {
+//********************//
+//  STATIC FUNCTIONS  //
+//____________________//
+
+
+//********************//
+//  inline functions  //
+//____________________//
+
+
+// returns number of slots on board
+static inline uint8_t z3_nslots(z3_config_t const *config) {
     return config->nrows * config->ncolumns * config->nrows * config->ncolumns;
 }
 
-static size_t z3_node_width_rc(uint8_t r, uint8_t c) {
+// returns 'z3_node_t' length in terms of M and N
+static inline size_t z3_node_width_rc(uint8_t r, uint8_t c) {
     return (size_t)(1 + (r * c) + (r * c * r * c));
 }
 
-static size_t z3_node_width(z3_config_t const *config) {
+// 'z3_node_width_rc' wrapper
+static inline size_t z3_node_width(z3_config_t const *config) {
     return z3_node_width_rc(config->nrows, config->ncolumns);
 }
 
-static uint8_t z3_node_previous(z3_node_t const node) {
+// extracts 'previous' from 'z3_node_t' (index of sub-board for current player)
+static inline uint8_t z3_node_previous(z3_node_t const node) {
     return *(uint8_t *)node;
 }
 
-static char *z3_node_mega(z3_node_t node) {
+// extracts mega-board from 'z3_node_t' (MxN board recording won sub-boards)
+static inline char *z3_node_mega(z3_node_t node) {
     return ++node;
 }
 
-static char *z3_node_blocks(z3_config_t const *config, z3_node_t node) {
+// extracts main board from 'z3_node_t'
+static inline char *z3_node_blocks(z3_config_t const *config, z3_node_t node) {
     return ++node + config->nrows * config->ncolumns;
 }
 
-static char *z3_node_block(z3_config_t const *config, z3_node_t const node, uint8_t previous) {
+// extracts sub-board for current player from 'z3_node_t'
+static inline char *z3_node_block(z3_config_t const *config, z3_node_t const node, uint8_t previous) {
     char *blocks = z3_node_blocks(config, node);
     uint8_t row = previous / config->ncolumns;
     uint8_t col = previous % config->ncolumns;
     return &blocks[RC2IDX(row, col, 0, 0, config->nrows, config->ncolumns)];
 }
 
-static uint8_t z3_node_nempty(z3_config_t const *config, z3_node_t const node) {
+// returns number of empty slots on board
+static inline uint8_t z3_node_nempty(z3_config_t const *config, z3_node_t const node) {
     char *blocks = z3_node_blocks(config, node);
     uint8_t nempty = 0;
     for (size_t slot = 0; slot < z3_nslots(config); ++slot)
@@ -90,7 +114,8 @@ static uint8_t z3_node_nempty(z3_config_t const *config, z3_node_t const node) {
     return nempty;
 }
 
-static z3_node_t z3_root(z3_config_t const *config, uint8_t previous_init) {
+// returns root 'z3_node_t' given initial sub-board for player 1
+static inline z3_node_t z3_root(z3_config_t const *config, uint8_t previous_init) {
     size_t width = z3_node_width(config);
     z3_node_t root = malloc(width * sizeof(char));
     *(uint8_t *)root = previous_init;
@@ -99,6 +124,34 @@ static z3_node_t z3_root(z3_config_t const *config, uint8_t previous_init) {
     return root;
 }
 
+// returns 'true' if the sub-board for the current player has no options
+static inline bool z3_node_stale(z3_config_t const *config, z3_node_t const node) {
+    uint8_t previous = z3_node_previous(node);
+    char *block = z3_node_block(config, node, previous);
+    for (uint8_t r = 0; r < config->nrows; ++r)
+        for (uint8_t c = 0; c < config->ncolumns; ++c)
+            if (block[RCIDX(r, c, config->ncolumns)] == config->tile_na)
+                return false;
+    return true;
+}
+
+// returns true if player to move for given tile is player 1
+static inline bool z3_node_p1(z3_config_t const *config, z3_node_t const node) {
+    return !((z3_nslots(config) - z3_node_nempty(config, node)) % 2);
+}
+
+// returns tile associated with player
+static inline char z3_tile_player(z3_config_t const *config, player_t player) {
+    return player == OAKLEY ? config->tile_p1 : config->tile_p2;
+}
+
+
+//*******************//
+//  helper functions //
+//___________________//
+
+
+// returns potency for given player in a block (a sub-board or the mega-board)
 static uint8_t z3_block_potency_player(z3_config_t const *config, char const *block, player_t player) {
     char tile_p = z3_tile_player(config, player);
     char tile_na = config->tile_na;
@@ -164,6 +217,7 @@ static uint8_t z3_block_potency_player(z3_config_t const *config, char const *bl
     return potency;
 }
 
+// returns potency for given player on mega-board for given node
 static uint8_t z3_node_potency_player(z3_config_t const *config, z3_node_t const node, player_t player) {
     size_t nslots_block = config->nrows * config->ncolumns;
     char *edit = malloc(nslots_block);
@@ -183,6 +237,7 @@ static uint8_t z3_node_potency_player(z3_config_t const *config, z3_node_t const
     return potency;
 }
 
+// returns maximum possible potency for either player in any block
 static uint8_t z3_node_potency_max(z3_config_t const *config) {
     z3_node_t root = z3_root(config, 0);
     uint8_t potency = z3_node_potency_player(config, root, OAKLEY);
@@ -190,6 +245,7 @@ static uint8_t z3_node_potency_max(z3_config_t const *config) {
     return potency;
 }
 
+// returns maximum heuristic value of 'z3_heuristic'
 static int z3_heuristic_win(z3_config_t const *config) {
     return z3_node_potency_max(config) * config->nrows * config->ncolumns + z3_node_potency_max(config) + (1 + z3_nslots(config));
 }
@@ -253,20 +309,7 @@ static void z3_node_print(z3_config_t const *config, z3_node_t const node) {
     printf("\n");
 }
 
-static void z3_publish(game_t const *game, node_t const node) {
-    z3_node_print((z3_config_t const *)game->config, (z3_node_t const)node);
-}
-
-static bool z3_node_stale(z3_config_t const *config, z3_node_t const node) {
-    uint8_t previous = z3_node_previous(node);
-    char *block = z3_node_block(config, node, previous);
-    for (uint8_t r = 0; r < config->nrows; ++r)
-        for (uint8_t c = 0; c < config->ncolumns; ++c)
-            if (block[RCIDX(r, c, config->ncolumns)] == config->tile_na)
-                return false;
-    return true;
-}
-
+// returns tile of winner of given block or empty tile if no winner
 static char z3_block_won(z3_config_t const *config, char const *block) {
     char tile = config->tile_na;
     bool won = true;
@@ -342,6 +385,7 @@ static char z3_block_won(z3_config_t const *config, char const *block) {
     return config->tile_na;
 }
 
+// returns 1 or -1 if player 1 or 2, respectively, created a zigzagzoe for given node
 static int8_t z3_node_zzz(z3_config_t const *config, z3_node_t const node) {
     char *mega = z3_node_mega(node);
     char winner = z3_block_won(config, mega);
@@ -352,15 +396,7 @@ static int8_t z3_node_zzz(z3_config_t const *config, z3_node_t const node) {
     return 0;
 }
 
-static bool p1_to_move(z3_config_t const *config, z3_node_t const node) {
-    return !((z3_nslots(config) - z3_node_nempty(config, node)) % 2);
-}
-
-static bool z3_leaf(game_t const *game, node_t const node) {
-    return z3_node_stale((z3_config_t *)game->config, (z3_node_t)node) ||
-               z3_node_zzz((z3_config_t *)game->config, (z3_node_t)node);
-}
-
+// returns number of sub-boards won by given player on given node
 static uint8_t z3_blocks_owned(z3_config_t const *config, z3_node_t node, player_t player) {
     char *mega = z3_node_mega(node);
     char tile = z3_tile_player(config, player);
@@ -371,6 +407,59 @@ static uint8_t z3_blocks_owned(z3_config_t const *config, z3_node_t node, player
     return count;
 }
 
+
+//**********************//
+//  'game.h' functions  //
+//______________________//
+
+
+// returns 'true' if given node has no children
+static bool z3_leaf(game_t const *game, node_t const node) {
+    return z3_node_stale((z3_config_t *)game->config, (z3_node_t)node) ||
+             z3_node_zzz((z3_config_t *)game->config, (z3_node_t)node);
+}
+
+static node_t *z3_spawn(game_t const *gm, node_t const nd, size_t * const noffspring) {
+    z3_t const *game = (z3_t const *)gm;
+    z3_config_t const *config = game->config;
+    z3_node_t const node = (z3_node_t const)nd;
+    uint8_t previous = z3_node_previous(node);
+    char *block = z3_node_block(config, node, previous);
+    char tile = z3_node_p1(config, node) ? config->tile_p1 : config->tile_p2;
+    z3_node_t child = NULL;
+    char *block_child = NULL;
+    z3_node_t offspring_buf[config->nrows * config->ncolumns];
+    *noffspring = 0;
+    for (uint8_t r = 0; r < config->nrows; ++r) {
+        for (uint8_t c = 0; c < config->ncolumns; ++c) {
+            if (block[RCIDX(r, c, config->ncolumns)] == config->tile_na) {
+                child = malloc(game_width(game));
+                memcpy(child, node, game_width(game));
+                *(uint8_t *)child = r * config->ncolumns + c;
+                block_child = z3_node_block(config, child, previous);
+                block_child[RCIDX(r, c, config->ncolumns)] = tile;
+                offspring_buf[(*noffspring)++] = child;
+            }
+        }
+    }
+    node_t *offspring = malloc(*noffspring * sizeof(node_t));
+    memcpy(offspring, offspring_buf, *noffspring * sizeof(node_t));
+    char *mega = z3_node_mega(node);
+    char *mega_child = NULL;
+    if (mega[previous] == config->tile_na) {
+        for (size_t i = 0; i < *noffspring; ++i) {
+            child = offspring[i];
+            block_child = z3_node_block(config, child, previous);
+            if (z3_block_won(config, block_child) != config->tile_na) {
+                mega_child = z3_node_mega(child);
+                mega_child[previous] = tile;
+            }
+        }
+    }
+    return offspring;
+}
+
+// returns player winning given node 
 static player_t z3_winner(game_t const *gm, node_t const nd) {
     z3_t const *game = (z3_t const *)gm;
     z3_node_t const node = (z3_node_t const)nd;
@@ -403,79 +492,9 @@ static int z3_heuristic(game_t const *gm, node_t const nd) {
     return value;
 }
 
-<<<<<<< HEAD
 static void z3_publish(game_t const *game, node_t const node) {
     z3_node_print((z3_config_t const *)game->config, (z3_node_t const)node);
 }
-=======
-/*
-//deprecated2017-03-03
-// only uses potency; and stalemate opp == win
-static int z3_heuristic(game_t const *gm, node_t const nd) {
-    z3_t const *game = (z3_t const *)gm;
-    z3_node_t const node = (z3_node_t const)nd;
-    int decisive = 1 + z3_node_potency_max(game->config) + z3_node_nempty(game->config, node);
-    int8_t winner = z3_node_zzz(game->config, node);
-    if (winner)
-        return winner * decisive;
-    if (z3_node_stale(game->config, node)) {
-        player_t player = p1_to_move(game->config, node) ? OAKLEY : TAYLOR;
-        return -1 * player * decisive;
-    }
-    uint8_t potency_p1 = z3_node_potency_player(game->config, node, OAKLEY);
-    uint8_t potency_p2 = z3_node_potency_player(game->config, node, TAYLOR);
-    return (int)potency_p1 - (int)potency_p2;
-}
-*/
-
-//deprecated 2016dec28
-/*
-static int16_t z3_heuristic2(node_t node) {
-    int16_t winner = (int16_t)z3_node_winning((z3_node_t)node);
-    if (winner)
-        return winner * (1 + game->nrows * game->ncolumns + z3_node_nempty((z3_node_t)node));
-    if (z3_node_stale((z3_node_t)node))
-        return 0;
-    char *grid = z3_node_grid((z3_node_t)node);
-    int16_t p1_area, p2_area;
-    p1_area = p2_area = 0;
-    for (uint8_t R = 0; R < game->nrows; ++R) {
-        for (uint8_t C = 0; C < game->ncolumns; ++C) {
-            p1_area += z3_node_area_winning(&grid[RC2IDX(R, C, 0, 0, game->nrows, game->ncolumns)], 1) ? 1 : 0;
-            p2_area += z3_node_area_winning(&grid[RC2IDX(R, C, 0, 0, game->nrows, game->ncolumns)], -1) ? 1 : 0;
-        }
-    }
-    return p1_area - p2_area;
-}
-
-static int16_t z3_heuristic3(node_t node) {
-    int16_t winner = (int16_t)z3_node_winning((z3_node_t)node);
-    if (winner)
-        return winner * (1 + game->nrows * game->ncolumns + z3_node_nempty((z3_node_t)node));
-    if (z3_node_stale((z3_node_t)node))
-        return 0;
-    char *grid = z3_node_grid((z3_node_t)node);
-    int16_t p1_area, p2_area;
-    p1_area = p2_area = 0;
-    for (uint8_t R = 0; R < game->nrows; ++R) {
-        for (uint8_t C = 0; C < game->ncolumns; ++C) {
-            p1_area += z3_node_area_winning(&grid[RC2IDX(R, C, 0, 0, game->nrows, game->ncolumns)], 1) ? grid_weight(R, C) : 0;
-            p2_area += z3_node_area_winning(&grid[RC2IDX(R, C, 0, 0, game->nrows, game->ncolumns)], -1) ? grid_weight(R, C) : 0;
-        }
-    }
-    return p1_area - p2_area;
-}
-*/
-
-
-
-
-
-
-//////////////////////
-
-
->>>>>>> parent of 7dd5067... cleaned 'zigzagzoe.c'
 
 //fixed 2017-03-03
 static node_t *z3_clone(game_t const *game, node_t const nd, size_t * const ntwins) {
@@ -537,224 +556,10 @@ static node_t *z3_clone(game_t const *game, node_t const nd, size_t * const ntwi
     return twins;
 }
 
-<<<<<<< HEAD
-=======
-//////////////////
 
-
-
-
-
-
-
-
-static node_t *z3_spawn(game_t const *gm, node_t const nd, size_t * const noffspring) {
-    //printf("spawn: start\n");
-    z3_t const *game = (z3_t const *)gm;
-    z3_config_t const *config = game->config;
-    z3_node_t const node = (z3_node_t const)nd;
-    //printf("spawn: before init static funcs\n");
-    uint8_t previous = z3_node_previous(node);
-    char *block = z3_node_block(config, node, previous);
-    char tile = p1_to_move(config, node) ? config->tile_p1 : config->tile_p2;
-    z3_node_t child = NULL;
-    char *block_child = NULL;
-    //printf("spawn: after\n");
-
-    z3_node_t offspring_buf[config->nrows * config->ncolumns];
-    *noffspring = 0;
-    for (uint8_t r = 0; r < config->nrows; ++r) {
-        for (uint8_t c = 0; c < config->ncolumns; ++c) {
-            if (block[RCIDX(r, c, config->ncolumns)] == config->tile_na) {
-                child = malloc(game_width(game));
-                memcpy(child, node, game_width(game));
-                *(uint8_t *)child = r * config->ncolumns + c;
-                block_child = z3_node_block(config, child, previous);
-                block_child[RCIDX(r, c, config->ncolumns)] = tile;
-                offspring_buf[(*noffspring)++] = child;
-            }
-        }
-    }
-    //printf("spawn: after first for-loop\n");
-
-    node_t *offspring = malloc(*noffspring * sizeof(node_t));
-    memcpy(offspring, offspring_buf, *noffspring * sizeof(node_t));
-
-    char *mega = z3_node_mega(node);
-    char *mega_child = NULL;
-    //printf("spawn: after z3_node_mega\n");
-    if (mega[previous] == config->tile_na) {
-        for (size_t i = 0; i < *noffspring; ++i) {
-            child = offspring[i];
-            block_child = z3_node_block(config, child, previous);
-            if (z3_block_won(config, block_child) != config->tile_na) {
-                mega_child = z3_node_mega(child);
-                mega_child[previous] = tile;
-            }
-        }
-    }
-
-    //printf("spawn: returning...\n");
-    return offspring;
-}
-
-static z3_config_t *config_strat;
-
-static int z3_compare_oakley(void const *node1_ref, void const *node2_ref) {
-    z3_node_t node1 = *(z3_node_t *)node1_ref;
-    z3_node_t node2 = *(z3_node_t *)node2_ref;
-    uint8_t prev1 = z3_node_previous(node1);
-    uint8_t prev2 = z3_node_previous(node2);
-    char *block1 = z3_node_block(config_strat, node1, prev1);
-    char *block2 = z3_node_block(config_strat, node2, prev2);
-    uint8_t delta_potency1 = z3_block_potency_player(config_strat, block1, OAKLEY) - z3_block_potency_player(config_strat, block1, TAYLOR);
-    uint8_t delta_potency2 = z3_block_potency_player(config_strat, block2, OAKLEY) - z3_block_potency_player(config_strat, block2, TAYLOR);
-    return (int)delta_potency2 - (int)delta_potency1;
-}
-
-static int z3_compare_taylor(void const *node1_ref, void const *node2_ref) {
-    z3_node_t node1 = *(z3_node_t *)node1_ref;
-    z3_node_t node2 = *(z3_node_t *)node2_ref;
-    uint8_t prev1 = z3_node_previous(node1);
-    uint8_t prev2 = z3_node_previous(node2);
-    char *block1 = z3_node_block(config_strat, node1, prev1);
-    char *block2 = z3_node_block(config_strat, node2, prev2);
-    uint8_t delta_potency1 = z3_block_potency_player(config_strat, block1, OAKLEY) - z3_block_potency_player(config_strat, block1, TAYLOR);
-    uint8_t delta_potency2 = z3_block_potency_player(config_strat, block2, OAKLEY) - z3_block_potency_player(config_strat, block2, TAYLOR);
-    return (int)delta_potency1 - (int)delta_potency2;
-}
-
-static void z3_stratify(game_t const *game, node_t * const offspring, size_t noffspring) {
-    config_strat = (z3_config_t *)game->config;
-    if (!p1_to_move(config_strat, offspring[0]))
-        qsort(offspring, noffspring, sizeof(node_t), &z3_compare_oakley);
-    else
-        qsort(offspring, noffspring, sizeof(node_t), &z3_compare_taylor);
-}
-
-
-/*
-static int z3_compare(const void *z3_node1_ref, const void *z3_node2_ref) {
-    char *grid1 = z3_node_grid(*(z3_node_t *)z3_node1_ref);
-    char *grid2 = z3_node_grid(*(z3_node_t *)z3_node2_ref);
-    int p1g1, p2g1, p1g2, p2g2;
-    p1g1 = p2g1 = p1g2 = p2g2 = 0;
-    for (uint8_t R = 0; R < game->nrows; ++R) {
-        for (uint8_t C = 0; C < game->ncolumns; ++C) {
-            p1g1 += z3_node_area_winning(&grid1[RC2IDX(R, C, 0, 0, game->nrows, game->ncolumns)], 1) ? 1 : 0;
-            p2g1 += z3_node_area_winning(&grid1[RC2IDX(R, C, 0, 0, game->nrows, game->ncolumns)], -1) ? 1 : 0;
-            p1g2 += z3_node_area_winning(&grid2[RC2IDX(R, C, 0, 0, game->nrows, game->ncolumns)], 1) ? 1 : 0;
-            p2g2 += z3_node_area_winning(&grid2[RC2IDX(R, C, 0, 0, game->nrows, game->ncolumns)], -1) ? 1 : 0;
-        }
-    }
-    // (a) prioritize nodes where current player owns more areas
-    // (b) prioritize nodes with more tension
-    // (c) prioritize nodes with less tension
-    // (b) <-- best (in my experience by pitting each prioritization against each other
-    //return -1 * (p1_to_move(*(z3_node_t *)z3_node1_ref) ? 1 : -1) * ((p1g1 - p2g1) - (p1g2 - p2g2));
-    return -1 * (p1g1 + p2g1 - (p1g2 + p2g2));
-    //return (p1g1 + p2g1 - (p1g2 + p2g2));
-}
-
-static int z3_compare2(const void *z3_node1_ref, const void *z3_node2_ref) {
-    char *grid1 = z3_node_grid(*(z3_node_t *)z3_node1_ref);
-    char *grid2 = z3_node_grid(*(z3_node_t *)z3_node2_ref);
-    int p1g1, p2g1, p1g2, p2g2;
-    p1g1 = p2g1 = p1g2 = p2g2 = 0;
-    for (uint8_t R = 0; R < game->nrows; ++R) {
-        for (uint8_t C = 0; C < game->ncolumns; ++C) {
-            p1g1 += z3_node_area_winning(&grid1[RC2IDX(R, C, 0, 0, game->nrows, game->ncolumns)], 1) ? 1 : 0;
-            p2g1 += z3_node_area_winning(&grid1[RC2IDX(R, C, 0, 0, game->nrows, game->ncolumns)], -1) ? 1 : 0;
-            p1g2 += z3_node_area_winning(&grid2[RC2IDX(R, C, 0, 0, game->nrows, game->ncolumns)], 1) ? 1 : 0;
-            p2g2 += z3_node_area_winning(&grid2[RC2IDX(R, C, 0, 0, game->nrows, game->ncolumns)], -1) ? 1 : 0;
-        }
-    }
-    return -1 * (p1_to_move(*(z3_node_t *)z3_node1_ref) ? 1 : -1) * ((p1g1 - p2g1) - (p1g2 - p2g2));
-}
-
-static int z3_compare3(const void *z3_node1_ref, const void *z3_node2_ref) {
-    char *grid1 = z3_node_grid(*(z3_node_t *)z3_node1_ref);
-    char *grid2 = z3_node_grid(*(z3_node_t *)z3_node2_ref);
-    int p1g1, p2g1, p1g2, p2g2;
-    p1g1 = p2g1 = p1g2 = p2g2 = 0;
-    for (uint8_t R = 0; R < game->nrows; ++R) {
-        for (uint8_t C = 0; C < game->ncolumns; ++C) {
-            p1g1 += z3_node_area_winning(&grid1[RC2IDX(R, C, 0, 0, game->nrows, game->ncolumns)], 1) ? grid_weight(R, C) : 0;
-            p2g1 += z3_node_area_winning(&grid1[RC2IDX(R, C, 0, 0, game->nrows, game->ncolumns)], -1) ? grid_weight(R, C) : 0;
-            p1g2 += z3_node_area_winning(&grid2[RC2IDX(R, C, 0, 0, game->nrows, game->ncolumns)], 1) ? grid_weight(R, C) : 0;
-            p2g2 += z3_node_area_winning(&grid2[RC2IDX(R, C, 0, 0, game->nrows, game->ncolumns)], -1) ? grid_weight(R, C) : 0;
-        }
-    }
-    return -1 * (p1_to_move(*(z3_node_t *)z3_node1_ref) ? 1 : -1) * ((p1g1 - p2g1) - (p1g2 - p2g2));
-}
-
-static void z3_stratify(node_t *offspring, size_t noffspring) {
-    qsort(offspring, noffspring, sizeof(node_t), &z3_compare);
-}
-
-static void z3_stratify2(node_t *offspring, size_t noffspring) {
-    qsort(offspring, noffspring, sizeof(node_t), &z3_compare2);
-}
-
-static void z3_stratify3(node_t *offspring, size_t noffspring) {
-    qsort(offspring, noffspring, sizeof(node_t), &z3_compare3);
-}
-*/
-
->>>>>>> parent of 7dd5067... cleaned 'zigzagzoe.c'
-
-
-
-
-
-
-
-
-
-
-//deprecated 20170329 in favor of implementation in 'game.c'
-/*
-static z3_node_t human_move(z3_t const *game) {
-    z3_config_t const *config = (z3_config_t const *)game->config;
-    size_t noffspring;
-    //printf("human_move: calling spawn\n");
-    z3_node_t *offspring = (z3_node_t *)z3_spawn(game, game_state(game), &noffspring);
-    for (size_t n = 0; n < noffspring; ++n)
-        printf("%s%s %c %s", ANSI.bold, ANSI.yellow, 'a' + (char)n, ANSI.reset);
-    char choice;
-    z3_node_t move = NULL;
-    printf("\nenter a letter (eval=?): ");
-    //printf("\nenter a letter (eval=%d): ", -1 * (int)config->eval);
-    scanf(" %c", &choice);
-    while (!move) {
-        size_t opt = (size_t)choice - (size_t)'a';
-        if (opt < noffspring)
-            move = offspring[opt];
-        if (!move) {
-            printf("invalid choice. enter a letter: ");
-            scanf(" %c", &choice);
-        }
-    }
-    for (size_t child = 0; child < noffspring; ++child)
-        if (offspring[child] != move)
-            free(offspring[child]);
-    free(offspring);
-    return move;
-}
-*/
-
-
-
-
-
-
-
-
-// PUBLIC LIBRARY FUNCTIONS //
-
-
-
-
+//****************************//
+//  PUBLIC LIBRARY FUNCTIONS  //
+//____________________________//
 
 
 // 26dec2016 fixed
@@ -804,101 +609,10 @@ void z3_free(z3_t *game) {
     game_free(game);
 }
 
-
-
-
-
-
-
 //TODO:needs game API fix
 void z3_set_block_init(z3_t *game, uint8_t block_init) {
   return;
 }
-
-
-
-
-
-
-
-//deprecated 20170329 due to implementation in 'game.c'
-/*
-static void z3_print(z3_t *game) {
-    z3_node_print(game->config, game_state(game));
-}
-
-static void z3_advance(z3_t *game) {
-    z3_config_t *config = game->config;
-    printf("\n");
-    z3_print(game);
-    printf("\n");
-    z3_node_t move = NULL;
-    if ((game_player(game) == OAKLEY && config->player1_ai) || (game_player(game) == TAYLOR && config->player2_ai)) {
-        printf("\n");
-/ *
-        int moves = (config->eval < 0) ? -1 * config->eval : config->eval;
-        if (game->player == OAKLEY) {
-            if (moves > game->nrows * game->ncolumns) {
-                moves -= 1 + game->nrows * game->ncolumns;
-                moves = z3_node_nempty(game->z3_node) - moves;
-            } else
-                moves = z3_node_nempty(game->z3_node);
-        } else {
-/ *
-            if (moves) {
-                moves -= 1;
-                moves = z3_node_nempty(game->z3_node) - moves;
-            } else
-                moves = z3_node_nempty(game->z3_node);
-* /
-            if (moves > max_heuristic3() - 1 - game->nrows * game->nrows * game->ncolumns * game->ncolumns) {
-                moves -= max_heuristic3() - game->nrows * game->nrows * game->ncolumns * game->ncolumns;
-                moves = z3_node_nempty(game->z3_node) - moves;
-            } else
-                moves = z3_node_nempty(game->z3_node);
-        }
-        printf("moves=%d,eval=%d(p=%d)\n", moves, -1 * game->player * game->eval, -1 * game->player);
-* /
-        //move = negamax_move(config->negamax, game_state(game), game_player(game), config->depth, &config->eval);
-        move = negamax_move(config->negamax, game_state(game), game_player(game), config->depth, &config->eval);
-/ *
-        int milliseconds = 2000;
-        struct timespec ts;
-        ts.tv_sec = milliseconds / 1000;
-        ts.tv_nsec = (milliseconds % 1000) * 1000000;
-        nanosleep(&ts, NULL);
-* /
-        printf("eval=%d; perspective=%d\n", config->eval, game_player(game));
-    } else
-        move = human_move(game);
-    config->previous = z3_node_previous(game_state(game));
-    //z3_node_print(game->config, move);
-    //printf("z3_advance: move address = %p\n", move);
-    //printf("z3_advance: game address = %p\n", game);
-    //printf("z3_advance: before game_move\n");
-    game_move(game, move);
-    //printf("z3_advance: after game_move\n");
-    free(move);
-    //printf("z3_advance: end\n");
-}
-*/
-
-/*
-void z3_play(z3_t *game) {
-    while (!z3_leaf(game, game_state(game)))
-        z3_advance(game);
-    //printf("\n");
-    z3_node_print(game->config, game_state(game));
-    //printf("\n");
-    int8_t winner = z3_node_zzz(game->config, game_state(game));
-    printf("%s!\n", winner ? ((winner == OAKLEY) ? "player 1 wins" : "player 2 wins" ) : "it's a draw");
-}
-*/
-
-
-
-
-
 
 
 
