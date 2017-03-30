@@ -1,4 +1,7 @@
 #!/bin/bash
 
-gawk "/[a-z0-9\_\*]+\([a-z0-9\_\* ]+(\,[a-z0-9\_\* ]+)*\)\s+{$/" $1
+
+# matches all (non-multiline) function prototypes
+gawk "/^([a-z0-9\_\* ])*[a-z0-9\_\*]+\([a-z0-9\_\* ]+(\,[a-z0-9\_\* \n]+)*\)\s+{$/" $1
+
 
