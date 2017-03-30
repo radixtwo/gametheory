@@ -1,5 +1,6 @@
 
 #include "game.h"
+#include "negamax.h"
 #include "vector.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -8,19 +9,31 @@
 #define MOVES_CAPACITY      16
 #define MOVES_MULTIPLIER    2
 #define MOVES_INCREMENT     1
+#define DEFAULT_DEPTH       8
+
 
 // private data struct definition
 struct _data_t {
     node_t const root;
     size_t const width;
     int const heuristic_win;
+
+    negamax_t *negamax;
+    uint8_t depth;
+    bool player1_ai;
+    bool player2_ai;
+
     player_t player;
     node_t state;
-    vector_t *moves;
+    int eval;
+
+    //vector_t *moves;
     unsigned score[2];
 };
 
-// static functions
+//////////////////////
+// static functions //
+//////////////////////
 
 static node_t node_dup(node_t const node, size_t width) {
     node_t copy = malloc(width);
@@ -38,16 +51,49 @@ static void player_toggle(game_t *game) {
     game->data->player *= -1;
 }
 
-// public functions
+static node_t human_move(game_t *game) {
+    size_t noffspring;
+    node_t *offspring = game->spawn(game, game_state(game), &noffspring);
+    printf("enter choice (");
+    for (size_t n = 0; n < noffspring; ++n) {
+        printf("%c", 'a' + (char)n);
+        if (n < noffspring - 1)
+            printf(",");
+    }
+    printf("): ");
+    int index;
+    char choice;
+    scanf(" %c", &choice);
+    index = choice - (int)'a';
+    while (index < 0 || index >= noffspring) {
+        printf("invalid choice!\nenter choice: ");
+        scanf(" %c", &choice);
+        index = choice - (int)'a';
+    }
+    for (size_t option = 0; option < noffspring; ++option)
+        if (option != index)
+            free(offspring[option]);
+    node_t move = offspring[index];
+    free(offspring);
+    return move;
+}
+
+//////////////////////
+// public functions //
+//////////////////////
 
 game_t *game_init(node_t const root, size_t const width, int const heuristic_win,
-                  leaf_t const leaf, spawn_t const spawn, heuristic_t const heuristic, publish_t const publish,
+                  uint8_t const depth, bool player1_ai, bool player2_ai,
+                  leaf_t const leaf, spawn_t const spawn, winner_t const winner,
+                  heuristic_t const heuristic, publish_t const publish,
                   clone_t const clone, stratify_t const stratify) {
-    data_t data_raw = {.root = root, .width = width, .heuristic_win = heuristic_win};
+    data_t data_raw = {.root = root, .width = width, .heuristic_win = heuristic_win,
+                       .depth = depth, .player1_ai = player1_ai, .player2_ai = player2_ai};
     data_t *data = malloc(sizeof(data_t));
     memcpy(data, &data_raw, sizeof(data_t));
     data->player = OAKLEY;
     data->state = node_dup(root, width);
+    data->eval = 0;
     //data->moves = vector_init_w(sizeof(node_t), MOVES_CAPACITY, MOVES_MULTIPLIER, MOVES_INCREMENT, &moves_trash);
     //vector_append(data->moves, &data->state);
     data->score[0] = 0;
@@ -55,12 +101,17 @@ game_t *game_init(node_t const root, size_t const width, int const heuristic_win
     game_t *game = malloc(sizeof(game_t));
     game->leaf = leaf;
     game->spawn = spawn;
+    game->winner = winner;
     game->heuristic = heuristic;
     game->publish = publish;
     game->clone = clone;
     game->stratify = stratify;
     game->data = data;
     game->config = NULL;
+    if (player1_ai || player2_ai) {
+        data->depth = depth ? DEFAULT_DEPTH : depth;
+        data->negamax = negamax_init(game);
+    }
     return game;
 }
 
@@ -70,6 +121,7 @@ void game_reset(game_t *game) {
     free(data->state);
     data->player = OAKLEY;
     data->state = node_dup(data->root, data->width);
+    data->eval = 0;
     //data->moves = vector_init_w(sizeof(node_t), MOVES_CAPACITY, MOVES_MULTIPLIER, MOVES_INCREMENT, &moves_trash);
     //vector_append(data->moves, &data->state);
     data->score[0] = 0;
@@ -78,6 +130,7 @@ void game_reset(game_t *game) {
 
 void game_free(game_t *game) {
     //vector_free(game->data->moves);
+    negamax_free(game->data->negamax);
     free(game);
 }
 
@@ -93,6 +146,18 @@ int game_heuristic_win(game_t const *game) {
     return game->data->heuristic_win;
 }
 
+uint8_t game_depth(game_t const *game) {
+    return game->data->depth;
+}
+
+bool game_player1_ai(game_t const *game) {
+    return game->data->player1_ai;
+}
+
+bool game_player2_ai(game_t const *game) {
+    return game->data->player2_ai;
+}
+
 player_t game_player(game_t const *game) {
     return game->data->player;
 }
@@ -103,6 +168,14 @@ node_t game_state(game_t const *game) {
 
 unsigned game_score(game_t const *game, player_t player) {
     return game->data->score[player == ONE ? 0 : 1];
+}
+
+void game_toggle_ai(game_t const *game, bool toggle_p1, bool toggle_p2) {
+    data_t *data = game->data;
+    data->player1_ai = toggle_p1 ? !data->player1_ai : data->player1_ai;
+    data->player2_ai = toggle_p2 ? !data->player2_ai : data->player2_ai;
+    if (!data->negamax && (data->player1_ai || data->player2_ai))
+        data->negamax = negamax_init(game);
 }
 
 void game_move(game_t *game, node_t node) {
@@ -127,6 +200,18 @@ void game_move(game_t *game, node_t node) {
     //printf("game_move: end\n");
 }
 
+void game_advance(game_t *game) {
+    data_t *data = game->data;
+    player_t player = game_player(game);
+    node_t move = NULL;
+    if (player == OAKLEY && data->player1_ai || player == TAYLOR && data->player2_ai)
+        move = negamax_move(data->negamax, game_state(game), player, data->depth, &data->eval);
+    else
+        move = human_move(game);
+    game_move(game, move);
+    free(move);
+}
+
 /*
 void game_rewind(game_t *game, size_t nrewind) {
     size_t nmoves = vector_size(game->data->moves);
@@ -144,14 +229,17 @@ void game_score_add(game_t *game, player_t player) {
     game->data->score[player == ONE ? 0 : 1]++;
 }
 
-//fixed 2017-03-03) still needs fixing...
-/*
 void game_play(game_t *game) {
-    while (!game->leaf(game_state(game)), / *...* /)
-      //advance
-    
+    game->publish(game, game_state(game));
+    while (!game->leaf(game, game_state(game))) {
+        game_advance(game);
+        game->publish(game, game_state(game));
+    }
+    player_t winner = game->winner(game, game_state(game));
+    printf("%s\n", winner == OAKLEY ? "player 1 wins!" : winner == TAYLOR ? "player 2 wins!" : "it's a draw!");
 }
 
+/*
 void game_rematch(game_t *game) {
     
 }

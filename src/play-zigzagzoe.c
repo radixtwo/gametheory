@@ -18,11 +18,11 @@ static bool play_again(z3_t *game) {
         printf("toggle player 1 (y/n)? ");
         scanf(" %c", &yn);
         if (yn == 'y')
-            z3_toggle_cpu(game, true, false);
+            game_toggle_ai(game, true, false);
         printf("toggle player 2 (y/n)? ");
         scanf(" %c", &yn);
         if (yn == 'y')
-            z3_toggle_cpu(game, false, true);
+            game_toggle_ai(game, false, true);
         return true;
     } else
         return false;
@@ -38,18 +38,18 @@ int main() {
         case 1:
             break;
         case 2:
-            z3_toggle_cpu(game, false, true);
+            game_toggle_ai(game, false, true);
             break;
         case 3:
-            z3_toggle_cpu(game, true, false);
+            game_toggle_ai(game, true, false);
             break;
         default:
-            z3_toggle_cpu(game, true, true);
+            game_toggle_ai(game, true, true);
             break;
     }
     do {
         z3_reset(game, 4); //needs getter for nrows*ncolumns from z3.h
-        z3_play(game);
+        game_play(game);
     } while (play_again(game));
     game_free(game);
     return 0;

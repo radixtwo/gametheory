@@ -32,12 +32,12 @@ typedef struct _z3_config_t {
     char tile_p2;
     char tile_na;
 
-    bool cpu_p1;
-    bool cpu_p2;
-    uint8_t depth;
-    negamax_t *negamax;
+//    bool player1_ai;
+//    bool player2_ai;
+//    uint8_t depth;
+//    negamax_t *negamax;
 
-    int eval;
+//    int eval;
     uint8_t previous;
 } z3_config_t;
 
@@ -371,6 +371,16 @@ static uint8_t z3_blocks_owned(z3_config_t const *config, z3_node_t node, player
     return count;
 }
 
+static player_t z3_winner(game_t const *gm, node_t const nd) {
+    z3_t const *game = (z3_t const *)gm;
+    z3_node_t const node = (z3_node_t const)nd;
+    z3_config_t *config = game->config;
+    int8_t winner = z3_node_zzz(config, node);
+    if (winner)
+        return winner == OAKLEY ? OAKLEY : TAYLOR;
+    return DAKOTA;
+}
+
 //2016dec28 NOTE: change return type to int16_t? (would require game.[ch] update, as well)
 static int z3_heuristic(game_t const *gm, node_t const nd) {
     z3_t const *game = (z3_t const *)gm;
@@ -693,7 +703,8 @@ static void z3_stratify3(node_t *offspring, size_t noffspring) {
 
 
 
-
+//deprecated 20170329 in favor of implementation in 'game.c'
+/*
 static z3_node_t human_move(z3_t const *game) {
     z3_config_t const *config = (z3_config_t const *)game->config;
     size_t noffspring;
@@ -721,7 +732,7 @@ static z3_node_t human_move(z3_t const *game) {
     free(offspring);
     return move;
 }
-
+*/
 
 
 
@@ -738,38 +749,37 @@ static z3_node_t human_move(z3_t const *game) {
 
 
 // 26dec2016 fixed
-z3_t *z3_init(bool cpu_p1, bool cpu_p2, uint8_t block_init) {
+z3_t *z3_init(bool player1_ai, bool player2_ai, uint8_t block_init) {
     return z3_init_w(DFLT_NROWS, DFLT_NCOLUMNS, DFLT_NCONNECT, block_init,
                      DFLT_TILE_P1, DFLT_TILE_P2, DFLT_EMPTY_TILE,
-                     cpu_p1, cpu_p2, DFLT_DEPTH);
+                     player1_ai, player2_ai, DFLT_DEPTH);
 }
 
 // 26dec2016 fixed
 z3_t *z3_init_w(uint8_t nrows, uint8_t ncolumns, uint8_t nconnect, uint8_t block_init,
                 char tile_p1, char tile_p2, char tile_na,
-                bool cpu_p1, bool cpu_p2, uint8_t depth) {
+                bool player1_ai, bool player2_ai, uint8_t depth) {
     z3_config_t config_raw = {.nrows = nrows, .ncolumns = ncolumns, .nconnect = nconnect,
-                              .cpu_p1 = cpu_p1, .cpu_p2 = cpu_p2, .depth = depth,
                               .tile_p1 = tile_p1, .tile_p2 = tile_p2, .tile_na = tile_na,
-                              .previous = nrows * ncolumns, .eval = 0};
+                              .previous = nrows * ncolumns};
     z3_config_t *config = malloc(sizeof(z3_config_t));
     memcpy(config, &config_raw, sizeof(z3_config_t));
     z3_t *game = game_init(
                      z3_root(config, block_init),
                      z3_node_width(config),
                      z3_heuristic_win(config),
+                     depth,
+                     player1_ai,
+                     player2_ai,
                      &z3_leaf,
                      &z3_spawn,
+                     &z3_winner,
                      &z3_heuristic,
                      &z3_publish,
                      &z3_clone,
                      NULL //&z3_stratify
                  );
     game->config = config;
-    if (cpu_p1 || cpu_p2) {
-        config->negamax = negamax_init(game);
-        //negamax_eval(game->negamax, game->z3_node, game->player, 2 + depth);
-    }
     return game;
 }
 
@@ -778,24 +788,18 @@ void z3_reset(z3_t *game, uint8_t block_init) {
     z3_config_t *config = (z3_config_t *)game->config;
     game_reset(game);
     config->previous = config->nrows * config->ncolumns;
-    config->eval = 0;
 }
 
 //fixed 2017-03-03
 void z3_free(z3_t *game) {
-    z3_config_t *config = (z3_config_t *)game->config;
-    negamax_free(config->negamax);
     game_free(game);
 }
 
-// 28dec2016 fixed
-void z3_toggle_cpu(z3_t *game, bool toggle_p1, bool toggle_p2) {
-    z3_config_t *config = (z3_config_t *)game->config;
-    config->cpu_p1 = toggle_p1 ? !config->cpu_p1 : config->cpu_p1;
-    config->cpu_p2 = toggle_p2 ? !config->cpu_p2 : config->cpu_p2;
-    if (!config->negamax && (config->cpu_p1 || config->cpu_p2))
-        config->negamax = negamax_init(game);
-}
+
+
+
+
+
 
 //TODO:needs game API fix
 void z3_set_block_init(z3_t *game, uint8_t block_init) {
@@ -808,14 +812,11 @@ void z3_set_block_init(z3_t *game, uint8_t block_init) {
 
 
 
-
-
-
-
+//deprecated 20170329 due to implementation in 'game.c'
+/*
 static void z3_print(z3_t *game) {
     z3_node_print(game->config, game_state(game));
 }
-
 
 static void z3_advance(z3_t *game) {
     z3_config_t *config = game->config;
@@ -823,9 +824,9 @@ static void z3_advance(z3_t *game) {
     z3_print(game);
     printf("\n");
     z3_node_t move = NULL;
-    if ((game_player(game) == OAKLEY && config->cpu_p1) || (game_player(game) == TAYLOR && config->cpu_p2)) {
+    if ((game_player(game) == OAKLEY && config->player1_ai) || (game_player(game) == TAYLOR && config->player2_ai)) {
         printf("\n");
-/*
+/ *
         int moves = (config->eval < 0) ? -1 * config->eval : config->eval;
         if (game->player == OAKLEY) {
             if (moves > game->nrows * game->ncolumns) {
@@ -848,16 +849,16 @@ static void z3_advance(z3_t *game) {
                 moves = z3_node_nempty(game->z3_node);
         }
         printf("moves=%d,eval=%d(p=%d)\n", moves, -1 * game->player * game->eval, -1 * game->player);
-*/
+* /
         //move = negamax_move(config->negamax, game_state(game), game_player(game), config->depth, &config->eval);
         move = negamax_move(config->negamax, game_state(game), game_player(game), config->depth, &config->eval);
-/*
+/ *
         int milliseconds = 2000;
         struct timespec ts;
         ts.tv_sec = milliseconds / 1000;
         ts.tv_nsec = (milliseconds % 1000) * 1000000;
         nanosleep(&ts, NULL);
-*/
+* /
         printf("eval=%d; perspective=%d\n", config->eval, game_player(game));
     } else
         move = human_move(game);
@@ -871,7 +872,9 @@ static void z3_advance(z3_t *game) {
     free(move);
     //printf("z3_advance: end\n");
 }
+*/
 
+/*
 void z3_play(z3_t *game) {
     while (!z3_leaf(game, game_state(game)))
         z3_advance(game);
@@ -881,7 +884,7 @@ void z3_play(z3_t *game) {
     int8_t winner = z3_node_zzz(game->config, game_state(game));
     printf("%s!\n", winner ? ((winner == OAKLEY) ? "player 1 wins" : "player 2 wins" ) : "it's a draw");
 }
-
+*/
 
 
 
