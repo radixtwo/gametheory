@@ -13,7 +13,7 @@
 //block
 
 #include "zigzagzoe.h"
-#include "negamax.h"
+#include "game.h"
 #include "ansicolor.h"
 #include <stdlib.h>
 #include <stdio.h>
