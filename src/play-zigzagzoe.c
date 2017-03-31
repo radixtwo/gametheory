@@ -33,7 +33,7 @@ int main() {
     int type;
     printf("%sHvH, HvC, CvH, CvC (1, 2, 3, 4)? ", ANSI.erase);
     scanf(" %d", &type);
-    z3_t *game = z3_init(false, false, 4);
+    z3_t *game = z3_init(false, false);
     switch(type) {
         case 1:
             break;
@@ -48,7 +48,7 @@ int main() {
             break;
     }
     do {
-        z3_reset(game, 4); //needs getter for nrows*ncolumns from z3.h
+        z3_reset(game);
         game_play(game);
     } while (play_again(game));
     game_free(game);

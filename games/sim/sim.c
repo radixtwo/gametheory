@@ -10,7 +10,7 @@
 #define XORSWP(x,y) do { x ^= y; y ^= x; x ^= y; } while (0)
 
 #define DFLT_NVERTICES 6
-#define DFLT_DEPTH 14
+#define DFLT_DEPTH 10
 
 // references by 'config' in 'game.h'
 typedef uint8_t sim_nvertex_t;
