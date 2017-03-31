@@ -11,12 +11,12 @@ typedef void *node_t;
 
 // player enum typedef
 typedef enum _player_t {
-    ONE = 1,
-    OAKLEY = 1,
-    TWO = -1,
-    TAYLOR = -1,
-    DRAW = 0,
-    DAKOTA = 0
+    P_ONE = 1,
+    P_OAKLEY = 1,
+    P_TWO = -1,
+    P_TAYLOR = -1,
+    P_DRAW = 0,
+    P_DAKOTA = 0
 } player_t;
 
 // private data struct typedef (defined in 'game.c')

@@ -40,7 +40,6 @@ _____________________
 // sterile == stalemate == draw; stratify should deprioritize stale nodes
 
 #include "zigzagzoe.h"
-#include "game.h"
 #include "ansicolor.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -171,7 +170,7 @@ static inline z3_node_t z3_node_root(z3_config_t const *config, uint8_t previous
 
 // returns tile associated with player
 static inline char  z3_tile_player(z3_config_t const *config, player_t player) {
-    return player == OAKLEY ? config->tile_p1 : config->tile_p2;
+    return player == P_OAKLEY ? config->tile_p1 : config->tile_p2;
 }
 
 //*******************//
@@ -268,7 +267,7 @@ static uint8_t  z3_node_potency_player(z3_config_t const *config, z3_node_t cons
 // returns maximum possible potency for either player in any block
 static uint8_t  z3_node_potency_max(z3_config_t const *config) {
     z3_node_t root = z3_node_root(config, 0);
-    uint8_t potency = z3_node_potency_player(config, root, OAKLEY);
+    uint8_t potency = z3_node_potency_player(config, root, P_OAKLEY);
     free(root);
     return potency;
 }
@@ -361,6 +360,7 @@ static char z3_block_won(z3_config_t const *config, char const *block) {
 }
 
 // returns 1 or -1 if player 1 or 2, respectively, created a zigzagzoe for given node
+// returns 0, otherwise
 static int8_t z3_node_zzz(z3_config_t const *config, z3_node_t const node) {
     char *mega = z3_node_mega(node);
     char winner = z3_block_won(config, mega);
@@ -439,7 +439,7 @@ static void z3_node_print(z3_config_t const *config, z3_node_t const node) {
 //______________________//
 
 
-// returns 'true' if given node has no children
+// returns 'true' if given node has no children (or options)
 static bool z3_leaf(game_t const *game, node_t const node) {
     return z3_node_stale(game->config, node) ||
              z3_node_zzz(game->config, node);
@@ -491,16 +491,16 @@ static player_t z3_winner(game_t const *game, node_t const node) {
     z3_config_t *config = game->config;
     int8_t winner = z3_node_zzz(config, node);
     if (winner)
-        return winner == OAKLEY ? OAKLEY : TAYLOR;
+        return winner == P_OAKLEY ? P_OAKLEY : P_TAYLOR;
     if (z3_node_stale(config, node)) {
         bool player1 = z3_node_player1(config, node);
         if (config->mate == Z3_WIN)
-            return player1 ? OAKLEY : TAYLOR;
+            return player1 ? P_OAKLEY : P_TAYLOR;
         if (config->mate == Z3_DRAW)
-            return DAKOTA;
-        return player1 ? TAYLOR : DAKOTA;
+            return P_DAKOTA;
+        return player1 ? P_TAYLOR : P_DAKOTA;
     }
-    return DAKOTA;
+    return P_DAKOTA;
 }
 
 // returns heuristic value of given node
@@ -516,18 +516,18 @@ static int  z3_heuristic(game_t const *game, node_t const node_raw) {
         return winner * decisive;
     if (z3_node_stale(config, node))
         return 0;
-    int blocks_p1 = z3_blocks_owned(config, node, OAKLEY);
-    int blocks_p2 = z3_blocks_owned(config, node, TAYLOR);
+    int blocks_p1 = z3_blocks_owned(config, node, P_OAKLEY);
+    int blocks_p2 = z3_blocks_owned(config, node, P_TAYLOR);
     return blocks_p1 - blocks_p2;
 /*
     ///  20170330 - deprecated  ///
     uint8_t potency_max = z3_node_potency_max(config);
     // territory * maxpotency + maxpotency + nempty
     int decisive = potency_max * config->M * config->N + potency_max + (1 + z3_node_nempty(config, node));
-    uint8_t owned_p1_scaled = potency_max * z3_blocks_owned(config, node, OAKLEY);
-    uint8_t owned_p2_scaled = potency_max * z3_blocks_owned(config, node, TAYLOR);
-    uint8_t potency_p1 = z3_node_potency_player(config, node, OAKLEY);
-    uint8_t potency_p2 = z3_node_potency_player(config, node, TAYLOR);
+    uint8_t owned_p1_scaled = potency_max * z3_blocks_owned(config, node, P_OAKLEY);
+    uint8_t owned_p2_scaled = potency_max * z3_blocks_owned(config, node, P_TAYLOR);
+    uint8_t potency_p1 = z3_node_potency_player(config, node, P_OAKLEY);
+    uint8_t potency_p2 = z3_node_potency_player(config, node, P_TAYLOR);
     int value = (int)owned_p1_scaled + (int)potency_p1 - (int)owned_p2_scaled - (int)potency_p2;
     return value;
 */

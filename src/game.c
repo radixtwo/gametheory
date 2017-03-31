@@ -91,7 +91,7 @@ game_t *game_init(node_t const root, size_t const width, int const heuristic_win
                        .depth = depth, .player1_ai = player1_ai, .player2_ai = player2_ai};
     data_t *data = malloc(sizeof(data_t));
     memcpy(data, &data_raw, sizeof(data_t));
-    data->player = OAKLEY;
+    data->player = P_OAKLEY;
     data->state = node_dup(root, width);
     data->eval = 0;
     //data->moves = vector_init_w(sizeof(node_t), MOVES_CAPACITY, MOVES_MULTIPLIER, MOVES_INCREMENT, &moves_trash);
@@ -119,7 +119,7 @@ void game_reset(game_t *game) {
     data_t *data = game->data;
     //vector_free(data->moves);
     free(data->state);
-    data->player = OAKLEY;
+    data->player = P_OAKLEY;
     data->state = node_dup(data->root, data->width);
     data->eval = 0;
     //data->moves = vector_init_w(sizeof(node_t), MOVES_CAPACITY, MOVES_MULTIPLIER, MOVES_INCREMENT, &moves_trash);
@@ -167,7 +167,7 @@ node_t game_state(game_t const *game) {
 }
 
 unsigned game_score(game_t const *game, player_t player) {
-    return game->data->score[player == ONE ? 0 : 1];
+    return game->data->score[player == P_ONE ? 0 : 1];
 }
 
 void game_toggle_ai(game_t const *game, bool toggle_p1, bool toggle_p2) {
@@ -204,7 +204,7 @@ void game_advance(game_t *game) {
     data_t *data = game->data;
     player_t player = game_player(game);
     node_t move = NULL;
-    if (player == OAKLEY && data->player1_ai || player == TAYLOR && data->player2_ai)
+    if (player == P_OAKLEY && data->player1_ai || player == P_TAYLOR && data->player2_ai)
         move = negamax_move(data->negamax, game_state(game), player, data->depth, &data->eval);
     else
         move = human_move(game);
@@ -226,7 +226,7 @@ void game_rewind(game_t *game, size_t nrewind) {
 */
 
 void game_score_add(game_t *game, player_t player) {
-    game->data->score[player == ONE ? 0 : 1]++;
+    game->data->score[player == P_ONE ? 0 : 1]++;
 }
 
 void game_play(game_t *game) {
@@ -236,7 +236,7 @@ void game_play(game_t *game) {
         game->publish(game, game_state(game));
     }
     player_t winner = game->winner(game, game_state(game));
-    printf("%s\n", winner == OAKLEY ? "player 1 wins!" : winner == TAYLOR ? "player 2 wins!" : "it's a draw!");
+    printf("%s\n", winner == P_OAKLEY ? "player 1 wins!" : winner == P_TAYLOR ? "player 2 wins!" : "it's a draw!");
 }
 
 /*
