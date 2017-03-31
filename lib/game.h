@@ -58,7 +58,7 @@ struct _game_t {
 game_t *game_init(
     node_t const root,
     size_t const width,
-    int const heuristic_win,
+    int const heuristic_max,
     uint8_t const depth,
     bool player1_ai,
     bool player2_ai,
@@ -78,7 +78,7 @@ void game_free(game_t *game);
 // getters
 node_t game_root(game_t const *game);
 size_t game_width(game_t const *game);
-int game_heuristic_win(game_t const *game);
+int game_heuristic_max(game_t const *game);
 
 uint8_t game_depth(game_t const *game);
 bool game_player1_ai(game_t const *game);

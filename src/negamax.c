@@ -107,7 +107,7 @@ static int negamax_search(negamax_t *negamax, node_t node, player_t player, uint
     shuffle(options, noptions, sizeof(node_t));
     if (game->stratify)
         game->stratify(game, options, noptions);
-    int value_best = -1 * game_heuristic_win(game);
+    int value_best = -1 * game_heuristic_max(game);
     for (size_t i = 0; i < noptions; ++i) {
         int value = -1 * negamax_search(negamax, options[i], -1 * player, depth - 1, -1 * beta, -1 * alpha);
         value_best = value > value_best ? value : value_best;
@@ -142,12 +142,12 @@ void negamax_free(negamax_t *negamax) {
 }
 
 int negamax_eval(negamax_t *negamax, node_t node, player_t player, uint8_t depth) {
-    return negamax_search(negamax, node, player, depth, -1 * game_heuristic_win(negamax->game), game_heuristic_win(negamax->game));
+    return negamax_search(negamax, node, player, depth, -1 * game_heuristic_max(negamax->game), game_heuristic_max(negamax->game));
 }
 
 node_t negamax_move(negamax_t *negamax, node_t node, player_t player, uint8_t depth, int * const eval) {
     game_t const *game = negamax->game;
-    int alpha = -1 * game_heuristic_win(game), beta = game_heuristic_win(game), value_best = alpha;
+    int alpha = -1 * game_heuristic_max(game), beta = game_heuristic_max(game), value_best = alpha;
     size_t noptions, nbest = 1;
     //printf("negamax_move: calling spawn\n");
     node_t *options = game->spawn(game, node, &noptions);

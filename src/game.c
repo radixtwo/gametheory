@@ -14,9 +14,9 @@
 
 // private data struct definition
 struct _data_t {
-    node_t const root;
-    size_t const width;
-    int const heuristic_win;
+    node_t root;
+    size_t width;
+    int heuristic_max;
 
     negamax_t *negamax;
     uint8_t depth;
@@ -82,12 +82,12 @@ static node_t human_move(game_t *game) {
 // public functions //
 //////////////////////
 
-game_t *game_init(node_t const root, size_t const width, int const heuristic_win,
+game_t *game_init(node_t const root, size_t const width, int const heuristic_max,
                   uint8_t const depth, bool player1_ai, bool player2_ai,
                   leaf_t const leaf, spawn_t const spawn, winner_t const winner,
                   heuristic_t const heuristic, publish_t const publish,
                   clone_t const clone, stratify_t const stratify) {
-    data_t data_raw = {.root = root, .width = width, .heuristic_win = heuristic_win,
+    data_t data_raw = {.root = root, .width = width, .heuristic_max = heuristic_max,
                        .depth = depth, .player1_ai = player1_ai, .player2_ai = player2_ai};
     data_t *data = malloc(sizeof(data_t));
     memcpy(data, &data_raw, sizeof(data_t));
@@ -142,8 +142,8 @@ size_t game_width(game_t const *game) {
     return game->data->width;
 }
 
-int game_heuristic_win(game_t const *game) {
-    return game->data->heuristic_win;
+int game_heuristic_max(game_t const *game) {
+    return game->data->heuristic_max;
 }
 
 uint8_t game_depth(game_t const *game) {
