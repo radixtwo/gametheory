@@ -92,6 +92,9 @@ game_t *game_init(
 // reset game variables
 void game_reset(game_t *game);
 
+// reset game variables with new root node
+void game_reset_root(game_t *game, node_t const root);
+
 // destructor
 void game_free(game_t *game);
 

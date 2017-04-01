@@ -143,6 +143,11 @@ void vector_remove(vector_t *vector, size_t const index) {
     --vector->size;
 }
 
+void vector_clear(vector_t *vector) {
+    while (vector->size > 0)
+        vector_remove(vector, 0);
+}
+
 int vector_search(vector_t const *vector, void const *key, compare_t compare, size_t start, bool const sorted) {
     assert(start < vector->size);
     size_t vector_size = vector->size;

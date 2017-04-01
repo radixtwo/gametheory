@@ -39,6 +39,7 @@ void vector_insert(vector_t *vector, void const *source, size_t const index);
 void vector_append(vector_t *vector, void const *source);
 void vector_replace(vector_t *vector, void const *source, size_t const index);
 void vector_remove(vector_t *vector, size_t const index);
+void vector_clear(vector_t *vector);
 
 // search
 int vector_search(vector_t const *vector, void const *key, compare_t const compare, size_t const width, bool const sorted);

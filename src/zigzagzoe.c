@@ -676,8 +676,9 @@ z3_t  *z3_init_w(uint8_t M, uint8_t N, uint8_t K, uint8_t block_init, z3_stale_t
                               };
     z3_config_t *config = malloc(sizeof(z3_config_t));
     memcpy(config, &config_raw, sizeof(z3_config_t));
+    z3_node_t root = z3_node_root(config, block_init);
     z3_t *game = game_init(
-                     z3_node_root(config, block_init),
+                     root,
                      z3_node_width(config),
                      z3_heuristic_max(config),
                      depth,
@@ -691,6 +692,7 @@ z3_t  *z3_init_w(uint8_t M, uint8_t N, uint8_t K, uint8_t block_init, z3_stale_t
                      &z3_clone,
                      NULL // &z3_stratify
                  );
+    free(root);
     game->config = config;
     return game;
 }
