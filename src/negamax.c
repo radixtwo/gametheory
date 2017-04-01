@@ -89,9 +89,7 @@ static int negamax_search(negamax_t *negamax, node_t node, player_t player, uint
     if (depth == 0 || game->leaf(game, node))
         return player * game->heuristic(game, node);
     size_t noptions;
-    //printf("negamax_search: calling spawn\n");
     node_t *options = game->spawn(game, node, &noptions);
-    //not sure if good option
     fisheryates(options, noptions, sizeof(node_t));
     if (game->stratify)
         game->stratify(game, options, noptions);
@@ -137,7 +135,6 @@ node_t negamax_move(negamax_t *negamax, node_t node, player_t player, uint8_t de
     game_t const *game = negamax->game;
     int alpha = -1 * game_heuristic_max(game), beta = game_heuristic_max(game), value_best = alpha;
     size_t noptions, nbest = 1;
-    //printf("negamax_move: calling spawn\n");
     node_t *options = game->spawn(game, node, &noptions);
     node_t best[noptions];
     for (size_t i = 0; i < noptions; ++i) {

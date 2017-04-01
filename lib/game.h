@@ -1,10 +1,23 @@
 
+
 #ifndef GAME_H
 #define GAME_H
+
+
+//-------------------//
+//  HEADER INCLUDES  //
+//-------------------//
+
 
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
+
+
+//--------------------//
+//  TYPE DEFINITIONS  //
+//--------------------//
+
 
 // client-specified node reference typedef
 typedef void *node_t;
@@ -53,7 +66,12 @@ struct _game_t {
     void *config;
 };
 
-// (2016dec28) TODO:add negamax to game_t struct underneath (data_t *)data
+
+//---------------------//
+//  LIBRARY FUNCTIONS  //
+//---------------------//
+
+
 // constructor
 game_t *game_init(
     node_t const root,
@@ -71,33 +89,59 @@ game_t *game_init(
     stratify_t const stratify
 );
 
-// destructor
+// reset game variables
 void game_reset(game_t *game);
+
+// destructor
 void game_free(game_t *game);
 
-// getters
+
+//-----------//
+//  getters  //
+//-----------//
+
+
 node_t game_root(game_t const *game);
 size_t game_width(game_t const *game);
 int game_heuristic_max(game_t const *game);
-
 uint8_t game_depth(game_t const *game);
 bool game_player1_ai(game_t const *game);
 bool game_player2_ai(game_t const *game);
-
 player_t game_player(game_t const *game);
 node_t game_state(game_t const *game);
+int game_eval(game_t const *game);
+node_t game_move_index(game_t const *game, size_t index);
 unsigned game_score(game_t const *game, player_t player);
 
-// setters
-void game_toggle_ai(game_t const *game, bool toggle_p1, bool toggle_p2);
 
-// game play
-void game_move(game_t *game, node_t move);
-void game_advance(game_t *game);
-//void game_rewind(game_t *game, size_t nrewind);
+//-----------//
+//  setters  //
+//-----------//
+
+
+void game_toggle_ai(game_t const *game, bool toggle_p1, bool toggle_p2);
 void game_score_add(game_t *game, player_t player);
+
+
+//-------------//
+//  game play  //
+//-------------//
+
+// designate & verify played move
+void game_move(game_t *game, node_t move);
+
+// advance game by one move (ai or human)
+void game_advance(game_t *game);
+
+// rewind game by 'nrewind' moves
+//void game_rewind(game_t *game, size_t nrewind);
+
+// overall game play loop
 void game_play(game_t *game);
+
+// reset score & begin new match
 //void game_rematch(game_t *game);
+
 
 #endif // GAME_H
 

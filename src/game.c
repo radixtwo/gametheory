@@ -1,4 +1,9 @@
 
+//-------------------//
+//  HEADER INCLUDES  //
+//-------------------//
+
+
 #include "game.h"
 #include "negamax.h"
 #include "vector.h"
@@ -7,13 +12,24 @@
 #include <stdio.h>
 #include <string.h>
 
+
+//----------//
+//  MACROS  //
+//----------//
+
+
 #define MOVES_CAPACITY      16
 #define MOVES_MULTIPLIER    2
 #define MOVES_INCREMENT     1
 #define DEFAULT_DEPTH       8
 
 
-// private data struct definition
+//------------------------//
+//  VARIABLE DEFINITIONS  //
+//------------------------//
+
+
+// 'game_t' data struct definition
 struct _data_t {
     node_t root;
     size_t width;
@@ -32,30 +48,61 @@ struct _data_t {
     unsigned score[2];
 };
 
-//////////////////////
-// static functions //
-//////////////////////
 
-static void moves_trash(void *node_ref) {
-    free(*(node_t *)node_ref);
-}
+//--------------------//
+//  STATIC FUNCTIONS  //
+//--------------------//
 
-static game_t *game_moves;
 
-static void moves_printv(void const *node_ref) {
-    game_moves->publish(game_moves, *(node_t *)node_ref);
-}
+//--------------------//
+//  inline functions  //
+//--------------------//
 
-static node_t node_dup(node_t const node, size_t width) {
+
+// dynamically allocates duplicate of passed node
+static inline node_t node_dup(node_t const node, size_t width) {
     node_t copy = malloc(width);
     memcpy(copy, node, width);
     return copy;
 }
 
-static void player_toggle(game_t *game) {
+// toggles current player
+static inline void player_toggle(game_t *game) {
     game->data->player *= -1;
 }
 
+// clears screen & prints game state to standard output
+static inline void publish_state(game_t *game) {
+    printf(ANSI.erase);
+    game->publish(game, game_state(game));
+}
+
+
+//----------------------------//
+//  'moves' vector functions  //
+//----------------------------//
+
+
+// frees each element of 'game->data->moves' vector
+static void moves_trash(void *node_ref) {
+    free(*(node_t *)node_ref);
+}
+
+// static variable for 'moves_printv'
+static game_t *game_moves;
+
+// 'moves' vector print function
+static void moves_printv(void const *node_ref) {
+    game_moves->publish(game_moves, *(node_t *)node_ref);
+}
+
+
+//-----------------------//
+//  game play functions  //
+//-----------------------//
+
+
+// prompts human player for choice & returns selected move
 static node_t human_move(game_t *game) {
     size_t noffspring;
     node_t *offspring = game->spawn(game, game_state(game), &noffspring);
@@ -83,15 +130,18 @@ static node_t human_move(game_t *game) {
     return move;
 }
 
-static void publish_state(game_t *game) {
-    printf(ANSI.erase);
-    game->publish(game, game_state(game));
-}
 
-//////////////////////
-// public functions //
-//////////////////////
+//---------------------//
+//  LIBRARY FUNCTIONS  //
+//---------------------//
 
+
+//--------------------------------//
+//  initialization & destruction  //
+//--------------------------------//
+
+
+// initializes game
 game_t *game_init(node_t const root, size_t const width, int const heuristic_max,
                   uint8_t const depth, bool player1_ai, bool player2_ai,
                   leaf_t const leaf, spawn_t const spawn, winner_t const winner,
@@ -130,6 +180,7 @@ game_t *game_init(node_t const root, size_t const width, int const heuristic_max
     return game;
 }
 
+// resets 'game_t' struct values
 void game_reset(game_t *game) {
     data_t *data = game->data;
     vector_free(data->moves);
@@ -142,12 +193,20 @@ void game_reset(game_t *game) {
     data->score[1] = 0;
 }
 
+// frees 'game_t' struct & other necessary data
 void game_free(game_t *game) {
     vector_free(game->data->moves);
     negamax_free(game->data->negamax);
     free(game);
 }
 
+
+//-----------//
+//  getters  //
+//-----------//
+
+
+// NOTE: DO NOT MODIFY RETURN VALUE!!!!
 node_t game_root(game_t const *game) {
     return game->data->root;
 }
@@ -159,6 +218,12 @@ size_t game_width(game_t const *game) {
 int game_heuristic_max(game_t const *game) {
     return game->data->heuristic_max;
 }
+
+/*
+negamax_t *game_negamax(game_t const *game) {
+    return game->data->negamax;
+}
+*/
 
 uint8_t game_depth(game_t const *game) {
     return game->data->depth;
@@ -176,13 +241,30 @@ player_t game_player(game_t const *game) {
     return game->data->player;
 }
 
+// NOTE: DO NOT MODIFY RETURN VALUE!!!!
 node_t game_state(game_t const *game) {
     return game->data->state;
+}
+
+int game_eval(game_t const *game) {
+    return game->data->eval;
+}
+
+// NOTE: DO NOT MODIFY RETURN VALUE!!!!
+node_t game_move_index(game_t const *game, size_t index) {
+    node_t *node = vector_index(game->data->moves, index);
+    return *node;
 }
 
 unsigned game_score(game_t const *game, player_t player) {
     return game->data->score[player == P_ONE ? 0 : 1];
 }
+
+
+//-----------//
+//  setters  //
+//-----------//
+
 
 void game_toggle_ai(game_t const *game, bool toggle_p1, bool toggle_p2) {
     data_t *data = game->data;
@@ -191,6 +273,16 @@ void game_toggle_ai(game_t const *game, bool toggle_p1, bool toggle_p2) {
     if (!data->negamax && (data->player1_ai || data->player2_ai))
         data->negamax = negamax_init(game);
 }
+
+void game_score_add(game_t *game, player_t player) {
+    game->data->score[player == P_ONE ? 0 : 1]++;
+}
+
+
+//-------------//
+//  game play  //
+//-------------//
+
 
 void game_move(game_t *game, node_t node) {
     size_t noptions;
@@ -235,18 +327,13 @@ void game_rewind(game_t *game, size_t nrewind) {
 }
 */
 
-void game_score_add(game_t *game, player_t player) {
-    game->data->score[player == P_ONE ? 0 : 1]++;
-}
-
 void game_play(game_t *game) {
     publish_state(game);
     game_moves = game;
     while (!game->leaf(game, game_state(game))) {
         game_advance(game);
         publish_state(game);
-        //vector_print(game->data->moves, moves_printv);
-        printf("eval = %d; heuristic = %d\n", -1 * game_player(game) * game->data->eval, game->heuristic(game, game_state(game)));
+        //printf("eval = %d; heuristic = %d\n", -1 * game_player(game) * game->data->eval, game->heuristic(game, game_state(game)));
     }
     player_t winner = game->winner(game, game_state(game));
     printf("%s\n", winner == P_OAKLEY ? "player 1 wins!" : winner == P_TAYLOR ? "player 2 wins!" : "it's a draw!");

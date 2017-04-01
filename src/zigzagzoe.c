@@ -34,11 +34,6 @@ can represent either a sub-board or the mega-board.
 _____________________
 */
 
-//     20170317 notes
-// heuristic factors: win, prolong loss, mega weight (connectn concept)
-// stratify factors: sort by heuristic, then by look at forcing moves first (forceful prioritized over heuristic)
-// sterile == stalemate == draw; stratify should deprioritize stale nodes
-
 #include "zigzagzoe.h"
 #include "nkrand.h"
 #include "ansicolor.h"
@@ -56,7 +51,7 @@ _____________________
 #define INIT_TILE_P2    'O'
 #define INIT_TILE_NA    '-'
 #define INIT_TILE_CLOG  '$'
-#define INIT_DEPTH_AI   4
+#define INIT_DEPTH_AI   8
 #define INIT_STALE      Z3_WIN
 
 typedef struct _z3_config_t {
@@ -399,7 +394,7 @@ static uint8_t  z3_subsum_potency_player(z3_config_t const *config, z3_node_t co
     return potency;
 }
 
-//TODO
+// prints the given node to standard output
 static void z3_node_print(z3_config_t const *config, z3_node_t const node) {
     char *mega = z3_node_mega(node);
     for (uint8_t row = 0; row < config->M; ++row) {
@@ -415,7 +410,6 @@ static void z3_node_print(z3_config_t const *config, z3_node_t const node) {
         printf("\n");
     }
     printf("\n");
-
     uint8_t previous = z3_node_previous(node);
     char *blocks = z3_node_blocks(config, node);
     uint8_t opt_count = 0;
@@ -449,7 +443,7 @@ static void z3_node_print(z3_config_t const *config, z3_node_t const node) {
         }
         printf("\n");
     }
-    printf("\n");
+    //printf("\n");
 }
 
 
@@ -530,9 +524,6 @@ static int  z3_heuristic_max(z3_config_t const *config) {
 }
 
 // returns heuristic value of given node
-// 2016dec28 NOTE: change return type to int16_t? (would require game.[ch] update, as well)
-// 20170330: TODO: FINALIZE THIS FUNCTION!!
-//     -- account for various stalemate possibilities
 static int  z3_heuristic(game_t const *game, node_t const node_raw) {
     z3_config_t *config = game->config;
     z3_node_t const node = node_raw;
@@ -578,7 +569,6 @@ static void z3_publish(game_t const *game, node_t const node) {
 // returns array of nodes in same symmetry group as given node
 // stores length of array in '*ntwins'
 static node_t *z3_clone(game_t const *game, node_t const node_raw, size_t * const ntwins) {
-    //remember to check if the found twin is, in fact, distinguishable from node
     z3_config_t const *config = game->config;
     z3_node_t const node = node_raw;
     uint8_t previous = z3_node_previous(node);
@@ -636,6 +626,29 @@ static node_t *z3_clone(game_t const *game, node_t const node_raw, size_t * cons
     return twins;
 }
 
+/*
+///  20170331 created & deprecated  ///
+
+static game_t const *game_stratify;
+
+static int stratify_cmp_p1(void const *addr1, void const *addr2) {
+    return game_stratify->heuristic(game_stratify, *(node_t *)addr2) - game_stratify->heuristic(game_stratify, *(node_t *)addr1);
+}
+
+static int stratify_cmp_p2(void const *addr1, void const *addr2) {
+    return game_stratify->heuristic(game_stratify, *(node_t *)addr1) - game_stratify->heuristic(game_stratify, *(node_t *)addr2);
+}
+
+static void z3_stratify(game_t const *game, node_t * const offspring, size_t const noffspring) {
+    game_stratify = game;
+    bool player1 = !z3_node_player1(game->config, offspring[0]);
+    if (player1)
+        qsort(offspring, noffspring, sizeof(node_t), &stratify_cmp_p1);
+    else
+        qsort(offspring, noffspring, sizeof(node_t), &stratify_cmp_p2);
+}
+*/
+
 
 //****************************//
 //  PUBLIC LIBRARY FUNCTIONS  //
@@ -676,7 +689,7 @@ z3_t  *z3_init_w(uint8_t M, uint8_t N, uint8_t K, uint8_t block_init, z3_stale_t
                      &z3_heuristic,
                      &z3_publish,
                      &z3_clone,
-                     NULL //&z3_stratify
+                     NULL // &z3_stratify
                  );
     game->config = config;
     return game;
