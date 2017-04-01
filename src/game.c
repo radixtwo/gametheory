@@ -2,6 +2,7 @@
 #include "game.h"
 #include "negamax.h"
 #include "vector.h"
+#include "ansicolor.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -27,7 +28,7 @@ struct _data_t {
     node_t state;
     int eval;
 
-    //vector_t *moves;
+    vector_t *moves;
     unsigned score[2];
 };
 
@@ -35,17 +36,21 @@ struct _data_t {
 // static functions //
 //////////////////////
 
+static void moves_trash(void *node_ref) {
+    free(*(node_t *)node_ref);
+}
+
+static game_t *game_moves;
+
+static void moves_printv(void const *node_ref) {
+    game_moves->publish(game_moves, *(node_t *)node_ref);
+}
+
 static node_t node_dup(node_t const node, size_t width) {
     node_t copy = malloc(width);
     memcpy(copy, node, width);
     return copy;
 }
-
-/*
-static void moves_trash(void *addr) {
-    free(*(node_t *)addr);
-}
-*/
 
 static void player_toggle(game_t *game) {
     game->data->player *= -1;
@@ -65,17 +70,22 @@ static node_t human_move(game_t *game) {
     char choice;
     scanf(" %c", &choice);
     index = choice - (int)'a';
-    while (index < 0 || index >= noffspring) {
+    while (index < 0 || index >= (int)noffspring) {
         printf("invalid choice!\nenter choice: ");
         scanf(" %c", &choice);
         index = choice - (int)'a';
     }
     for (size_t option = 0; option < noffspring; ++option)
-        if (option != index)
+        if (option != (size_t)index)
             free(offspring[option]);
     node_t move = offspring[index];
     free(offspring);
     return move;
+}
+
+static void publish_state(game_t *game) {
+    printf(ANSI.erase);
+    game->publish(game, game_state(game));
 }
 
 //////////////////////
@@ -87,17 +97,20 @@ game_t *game_init(node_t const root, size_t const width, int const heuristic_max
                   leaf_t const leaf, spawn_t const spawn, winner_t const winner,
                   heuristic_t const heuristic, publish_t const publish,
                   clone_t const clone, stratify_t const stratify) {
-    data_t data_raw = {.root = root, .width = width, .heuristic_max = heuristic_max,
+    data_t data_raw = {.root = node_dup(root, width), .width = width, .heuristic_max = heuristic_max,
                        .depth = depth, .player1_ai = player1_ai, .player2_ai = player2_ai};
     data_t *data = malloc(sizeof(data_t));
     memcpy(data, &data_raw, sizeof(data_t));
+
     data->player = P_OAKLEY;
     data->state = node_dup(root, width);
     data->eval = 0;
-    //data->moves = vector_init_w(sizeof(node_t), MOVES_CAPACITY, MOVES_MULTIPLIER, MOVES_INCREMENT, &moves_trash);
-    //vector_append(data->moves, &data->state);
+
+    data->moves = vector_init_w(sizeof(node_t), MOVES_CAPACITY, MOVES_MULTIPLIER, MOVES_INCREMENT, &moves_trash);
+    vector_append(data->moves, &data->state);
     data->score[0] = 0;
     data->score[1] = 0;
+
     game_t *game = malloc(sizeof(game_t));
     game->leaf = leaf;
     game->spawn = spawn;
@@ -108,28 +121,29 @@ game_t *game_init(node_t const root, size_t const width, int const heuristic_max
     game->stratify = stratify;
     game->data = data;
     game->config = NULL;
+
     if (player1_ai || player2_ai) {
         data->depth = depth ? DEFAULT_DEPTH : depth;
         data->negamax = negamax_init(game);
     }
+
     return game;
 }
 
 void game_reset(game_t *game) {
     data_t *data = game->data;
-    //vector_free(data->moves);
-    free(data->state);
+    vector_free(data->moves);
     data->player = P_OAKLEY;
     data->state = node_dup(data->root, data->width);
     data->eval = 0;
-    //data->moves = vector_init_w(sizeof(node_t), MOVES_CAPACITY, MOVES_MULTIPLIER, MOVES_INCREMENT, &moves_trash);
-    //vector_append(data->moves, &data->state);
+    data->moves = vector_init_w(sizeof(node_t), MOVES_CAPACITY, MOVES_MULTIPLIER, MOVES_INCREMENT, &moves_trash);
+    vector_append(data->moves, &data->state);
     data->score[0] = 0;
     data->score[1] = 0;
 }
 
 void game_free(game_t *game) {
-    //vector_free(game->data->moves);
+    vector_free(game->data->moves);
     negamax_free(game->data->negamax);
     free(game);
 }
@@ -179,10 +193,8 @@ void game_toggle_ai(game_t const *game, bool toggle_p1, bool toggle_p2) {
 }
 
 void game_move(game_t *game, node_t node) {
-    //printf("game_move: start\n");
     size_t noptions;
     node_t *options = game->spawn(game, game_state(game), &noptions);
-    //printf("game_move: after spawn\n");
     bool legal = false;
     for (size_t i = 0; i < noptions; ++i) {
         if (!legal && !memcmp(node, options[i], game->data->width))
@@ -190,21 +202,19 @@ void game_move(game_t *game, node_t node) {
         free(options[i]);
     }
     free(options);
-    //printf("game_move: before `if legal`\n");
     if (legal) {
         player_toggle(game);
         node_t copy = node_dup(node, game->data->width);
         game->data->state = copy;
-        //vector_append(game->data->moves, &copy);
+        vector_append(game->data->moves, &copy);
     }
-    //printf("game_move: end\n");
 }
 
 void game_advance(game_t *game) {
     data_t *data = game->data;
     player_t player = game_player(game);
     node_t move = NULL;
-    if (player == P_OAKLEY && data->player1_ai || player == P_TAYLOR && data->player2_ai)
+    if ((player == P_OAKLEY && data->player1_ai) || (player == P_TAYLOR && data->player2_ai))
         move = negamax_move(data->negamax, game_state(game), player, data->depth, &data->eval);
     else
         move = human_move(game);
@@ -230,10 +240,13 @@ void game_score_add(game_t *game, player_t player) {
 }
 
 void game_play(game_t *game) {
-    game->publish(game, game_state(game));
+    publish_state(game);
+    game_moves = game;
     while (!game->leaf(game, game_state(game))) {
         game_advance(game);
-        game->publish(game, game_state(game));
+        publish_state(game);
+        //vector_print(game->data->moves, moves_printv);
+        printf("eval = %d; heuristic = %d\n", -1 * game_player(game) * game->data->eval, game->heuristic(game, game_state(game)));
     }
     player_t winner = game->winner(game, game_state(game));
     printf("%s\n", winner == P_OAKLEY ? "player 1 wins!" : winner == P_TAYLOR ? "player 2 wins!" : "it's a draw!");

@@ -40,6 +40,7 @@ _____________________
 // sterile == stalemate == draw; stratify should deprioritize stale nodes
 
 #include "zigzagzoe.h"
+#include "nkrand.h"
 #include "ansicolor.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -127,7 +128,7 @@ static inline uint8_t z3_node_ntiles(z3_config_t const *config, z3_node_t const 
     char *blocks = z3_node_blocks(config, node);
     uint8_t ntiles = 0;
     for (size_t slot = 0; slot < z3_nslots(config); ++slot)
-        if (blocks[slot] == config->tile_p1 || blocks[slot] == config->tile_p2)
+        if (blocks[slot] != config->tile_na)
             ++ntiles;
     return ntiles;
 }
@@ -151,10 +152,9 @@ static inline bool  z3_node_player1(z3_config_t const *config, z3_node_t const n
 static inline bool  z3_node_stale(z3_config_t const *config, z3_node_t const node) {
     uint8_t previous = z3_node_previous(node);
     char *block = z3_node_block(config, node, previous);
-    for (uint8_t r = 0; r < config->M; ++r)
-        for (uint8_t c = 0; c < config->N; ++c)
-            if (block[BLKIDX(r, c, config->N)] == config->tile_na)
-                return false;
+    for (uint8_t slot = 0; slot < config->M * config->N; ++slot)
+        if (block[slot] == config->tile_na)
+            return false;
     return true;
 }
 
@@ -173,105 +173,21 @@ static inline char  z3_tile_player(z3_config_t const *config, player_t player) {
     return player == P_OAKLEY ? config->tile_p1 : config->tile_p2;
 }
 
+static inline player_t  z3_player_tile(z3_config_t const *config, char tile) {
+    if (tile == config->tile_p1)
+        return P_OAKLEY;
+    if (tile == config->tile_p2)
+        return P_TAYLOR;
+    return P_DAKOTA;
+}
+
 //*******************//
 //  helper functions //
 //___________________//
 
 
-// returns potency for given player in a block (a sub-board or the mega-board)
-static uint8_t  z3_block_potency_player(z3_config_t const *config, char const *block, player_t player) {
-    char tile_p = z3_tile_player(config, player);
-    char tile_na = config->tile_na;
-    bool potential = true;
-    uint8_t potency = 0;
-    int8_t row, col, n;
-    for (row = 0; row < config->M; ++row) {
-        for (col = 0; col < config->N - config->K + 1; ++col) {
-            potential = true;
-            for (n = 0; n < config->K; ++n) {
-                char slot = block[BLKIDX(row, col + n, config->N)];
-                if (slot != tile_p && slot != tile_na) {
-                    potential = false;
-                    break;
-                }
-            }
-            if (potential)
-              ++potency;
-        }
-    }
-    for (row = 0; row < config->M - config->K + 1; ++row) {
-        for (col = 0; col < config->N; ++col) {
-            potential = true;
-            for (n = 0; n < config->K; ++n) {
-                char slot = block[BLKIDX(row + n, col, config->N)];
-                if (slot != tile_p && slot != tile_na) {
-                    potential = false;
-                    break;
-                }
-            }
-            if (potential)
-              ++potency;
-        }
-    }
-    for (row = 0; row < config->M - config->K + 1; ++row) {
-        for (col = 0; col < config->N - config->K + 1; ++col) {
-            potential = true;
-            for (n = 0; n < config->K; ++n) {
-                char slot = block[BLKIDX(row + n, col + n, config->N)];
-                if (slot != tile_p && slot != tile_na) {
-                    potential = false;
-                    break;
-                }
-            }
-            if (potential)
-              ++potency;
-        }
-    }
-    for (row = config->M - 1; row >= config->K - 1; --row) {
-        for (col = 0; col < config->N - config->K + 1; ++col) {
-            potential = true;
-            for (n = 0; n < config->K; ++n) {
-                char slot = block[BLKIDX(row - n, col + n, config->N)];
-                if (slot != tile_p && slot != tile_na) {
-                    potential = false;
-                    break;
-                }
-            }
-            if (potential)
-              ++potency;
-        }
-    }
-    return potency;
-}
-
-// returns potency for given player on mega-board for given node
-static uint8_t  z3_node_potency_player(z3_config_t const *config, z3_node_t const node, player_t player) {
-    size_t nslots_block = config->M * config->N;
-    char *edit = malloc(nslots_block);
-    memcpy(edit, z3_node_mega(node), nslots_block);
-    char *blocks = z3_node_blocks(config, node);
-    for (uint8_t r = 0; r < config->M; ++r) {
-        for (uint8_t c = 0; c < config->N; ++c) {
-            if (edit[BLKIDX(r, c, config->N)] != config->tile_na)
-                continue;
-            uint8_t block_potency = z3_block_potency_player(config, &blocks[MEGIDX(r, c, 0, 0, config->M, config->N)], player);
-            if (!block_potency)
-                edit[BLKIDX(r, c, config->N)] = config->tile_clog;
-        }
-    }
-    uint8_t potency = z3_block_potency_player(config, edit, player);
-    free(edit);
-    return potency;
-}
-
-// returns maximum possible potency for either player in any block
-static uint8_t  z3_node_potency_max(z3_config_t const *config) {
-    z3_node_t root = z3_node_root(config, 0);
-    uint8_t potency = z3_node_potency_player(config, root, P_OAKLEY);
-    free(root);
-    return potency;
-}
-
+/*
+///  20170331 deprecated  ///
 // returns number of sub-boards won by given player on given node
 static uint8_t  z3_blocks_owned(z3_config_t const *config, z3_node_t node, player_t player) {
     char *mega = z3_node_mega(node);
@@ -282,6 +198,7 @@ static uint8_t  z3_blocks_owned(z3_config_t const *config, z3_node_t node, playe
             ++count;
     return count;
 }
+*/
 
 // returns tile of winner of given block or empty tile if no winner
 static char z3_block_won(z3_config_t const *config, char const *block) {
@@ -371,15 +288,119 @@ static int8_t z3_node_zzz(z3_config_t const *config, z3_node_t const node) {
     return 0;
 }
 
-// returns maximum heuristic value of 'z3_heuristic'
-static int  z3_heuristic_max(z3_config_t const *config) {
-    return config->M * config->N + (1 + z3_nslots(config));
+// returns potency for given player in a block (a sub-board or the mega-board)
+static uint8_t  z3_block_potency_player(z3_config_t const *config, char const *block, player_t player) {
+    char tile_p = z3_tile_player(config, player);
+    char tile_na = config->tile_na;
+    bool potential = true;
+    uint8_t potency = 0;
+    int8_t row, col, n;
+    for (row = 0; row < config->M; ++row) {
+        for (col = 0; col < config->N - config->K + 1; ++col) {
+            potential = true;
+            for (n = 0; n < config->K; ++n) {
+                char slot = block[BLKIDX(row, col + n, config->N)];
+                if (slot != tile_p && slot != tile_na) {
+                    potential = false;
+                    break;
+                }
+            }
+            if (potential)
+              ++potency;
+        }
+    }
+    for (row = 0; row < config->M - config->K + 1; ++row) {
+        for (col = 0; col < config->N; ++col) {
+            potential = true;
+            for (n = 0; n < config->K; ++n) {
+                char slot = block[BLKIDX(row + n, col, config->N)];
+                if (slot != tile_p && slot != tile_na) {
+                    potential = false;
+                    break;
+                }
+            }
+            if (potential)
+              ++potency;
+        }
+    }
+    for (row = 0; row < config->M - config->K + 1; ++row) {
+        for (col = 0; col < config->N - config->K + 1; ++col) {
+            potential = true;
+            for (n = 0; n < config->K; ++n) {
+                char slot = block[BLKIDX(row + n, col + n, config->N)];
+                if (slot != tile_p && slot != tile_na) {
+                    potential = false;
+                    break;
+                }
+            }
+            if (potential)
+              ++potency;
+        }
+    }
+    for (row = config->M - 1; row >= config->K - 1; --row) {
+        for (col = 0; col < config->N - config->K + 1; ++col) {
+            potential = true;
+            for (n = 0; n < config->K; ++n) {
+                char slot = block[BLKIDX(row - n, col + n, config->N)];
+                if (slot != tile_p && slot != tile_na) {
+                    potential = false;
+                    break;
+                }
+            }
+            if (potential)
+              ++potency;
+        }
+    }
+    return potency;
+}
+
+// returns potency for given player on mega-board for given node
+static uint8_t  z3_mega_potency_player(z3_config_t const *config, z3_node_t const node, player_t player) {
+    size_t nslots_block = config->M * config->N;
+    char *edit = malloc(nslots_block);
+    memcpy(edit, z3_node_mega(node), nslots_block);
+    char *blocks = z3_node_blocks(config, node);
+    for (uint8_t r = 0; r < config->M; ++r) {
+        for (uint8_t c = 0; c < config->N; ++c) {
+            if (edit[BLKIDX(r, c, config->N)] != config->tile_na)
+                continue;
+            uint8_t block_potency = z3_block_potency_player(config, &blocks[MEGIDX(r, c, 0, 0, config->M, config->N)], player);
+            if (!block_potency)
+                edit[BLKIDX(r, c, config->N)] = config->tile_clog;
+        }
+    }
+    uint8_t potency = z3_block_potency_player(config, edit, player);
+    free(edit);
+    return potency;
+}
+
+// returns maximum possible potency for either player in any block
+static uint8_t  z3_node_potency_max(z3_config_t const *config) {
+    z3_node_t root = z3_node_root(config, 0);
+    uint8_t potency = z3_mega_potency_player(config, root, P_OAKLEY);
+    free(root);
+    return potency;
+}
+
+// returns the sum of the potencies of the sub-boards for the given player
+static uint8_t  z3_subsum_potency_player(z3_config_t const *config, z3_node_t const node, player_t player) {
+    size_t nblocks = config->M * config->N;
+    uint8_t potency_max = z3_node_potency_max(config);
+    uint8_t potency = 0;
+    for (size_t b = 0; b < nblocks; ++b) {
+        char *block = z3_node_block(config, node, b);
+        char tile_player = z3_block_won(config, block);
+        player_t player_block_won = z3_player_tile(config, tile_player);
+        if (player_block_won == player)
+            potency += potency_max;
+        else if (player_block_won == P_DAKOTA)
+            potency += z3_block_potency_player(config, block, player);
+    }
+    return potency;
 }
 
 //TODO
 static void z3_node_print(z3_config_t const *config, z3_node_t const node) {
-    printf(ANSI.erase);
-
     char *mega = z3_node_mega(node);
     for (uint8_t row = 0; row < config->M; ++row) {
         for (uint8_t col = 0; col < config->N; ++col) {
@@ -402,7 +423,6 @@ static void z3_node_print(z3_config_t const *config, z3_node_t const node) {
         uint8_t R = row / config->M;
         uint8_t r = row % config->M;
         if (R && !r) {
-            //printf("%s%s", ANSI.bold, ANSI.green);
             printf("%s", ANSI.green);
             for (uint8_t brk = 0; brk < config->N * config->N; ++brk) {
                 if (brk / config->N  && !(brk % config->N))
@@ -416,7 +436,6 @@ static void z3_node_print(z3_config_t const *config, z3_node_t const node) {
             uint8_t C = col / config->N;
             uint8_t c = col % config->N;
             if (C && !c)
-                //printf("%s%s|%s", ANSI.bold, ANSI.green, ANSI.reset);
                 printf("%s|%s", ANSI.green, ANSI.reset);
             char tile = blocks[MEGIDX(R, C, r, c, config->M, config->N)];
             if (BLKIDX(R, C, config->N) == previous && tile == config->tile_na)
@@ -498,9 +517,16 @@ static player_t z3_winner(game_t const *game, node_t const node) {
             return player1 ? P_OAKLEY : P_TAYLOR;
         if (config->mate == Z3_DRAW)
             return P_DAKOTA;
-        return player1 ? P_TAYLOR : P_DAKOTA;
+        return player1 ? P_TAYLOR : P_OAKLEY;
     }
     return P_DAKOTA;
+}
+
+// returns maximum heuristic value of 'z3_heuristic'
+static int  z3_heuristic_max(z3_config_t const *config) {
+    uint8_t potency_max = z3_node_potency_max(config);
+    //return (1 + config->M * config->N) * potency_max + (1 + z3_nslots(config));
+    return potency_max * config->M * config->N * potency_max + (1 + z3_nslots(config));
 }
 
 // returns heuristic value of given node
@@ -510,15 +536,26 @@ static player_t z3_winner(game_t const *game, node_t const node) {
 static int  z3_heuristic(game_t const *game, node_t const node_raw) {
     z3_config_t *config = game->config;
     z3_node_t const node = node_raw;
-    int decisive = config->M * config->N + (1 + z3_node_nempty(config, node));
+    uint8_t potency_max = z3_node_potency_max(config);
+    //int decisive = (1 + config->M * config->N) * potency_max + (1 + z3_node_nempty(config, node));
+    int decisive = potency_max * config->M * config->N * potency_max + (1 + z3_node_nempty(config, node));
     player_t winner = z3_winner(game, node_raw);
     if (winner)
         return winner * decisive;
     if (z3_node_stale(config, node))
         return 0;
+    uint8_t potency_mega_p1 = z3_mega_potency_player(config, node, P_OAKLEY);
+    uint8_t potency_mega_p2 = z3_mega_potency_player(config, node, P_TAYLOR);
+    uint8_t potency_subsum_p1 = z3_subsum_potency_player(config, node, P_OAKLEY);
+    uint8_t potency_subsum_p2 = z3_subsum_potency_player(config, node, P_TAYLOR);
+    //return potency_mega_p1 - potency_mega_p2 + potency_subsum_p1 - potency_subsum_p2;
+    return potency_mega_p1 * potency_subsum_p1 - potency_mega_p2 * potency_subsum_p2;
+/*
+    ///  20170331 - deprecated  ///
     int blocks_p1 = z3_blocks_owned(config, node, P_OAKLEY);
     int blocks_p2 = z3_blocks_owned(config, node, P_TAYLOR);
     return blocks_p1 - blocks_p2;
+*/
 /*
     ///  20170330 - deprecated  ///
     uint8_t potency_max = z3_node_potency_max(config);
@@ -526,8 +563,8 @@ static int  z3_heuristic(game_t const *game, node_t const node_raw) {
     int decisive = potency_max * config->M * config->N + potency_max + (1 + z3_node_nempty(config, node));
     uint8_t owned_p1_scaled = potency_max * z3_blocks_owned(config, node, P_OAKLEY);
     uint8_t owned_p2_scaled = potency_max * z3_blocks_owned(config, node, P_TAYLOR);
-    uint8_t potency_p1 = z3_node_potency_player(config, node, P_OAKLEY);
-    uint8_t potency_p2 = z3_node_potency_player(config, node, P_TAYLOR);
+    uint8_t potency_p1 = z3_mega_potency_player(config, node, P_OAKLEY);
+    uint8_t potency_p2 = z3_mega_potency_player(config, node, P_TAYLOR);
     int value = (int)owned_p1_scaled + (int)potency_p1 - (int)owned_p2_scaled - (int)potency_p2;
     return value;
 */
@@ -607,7 +644,7 @@ static node_t *z3_clone(game_t const *game, node_t const node_raw, size_t * cons
 
 // returns 'z3_t *' game initialized with default values
 z3_t  *z3_init(bool player1_ai, bool player2_ai) {
-    uint8_t block_init = rand() % (INIT_M * INIT_N);
+    uint8_t block_init = nkrand(INIT_M * INIT_N);
     return z3_init_w(INIT_M, INIT_N, INIT_K, block_init, INIT_STALE,
                      INIT_TILE_P1, INIT_TILE_P2, INIT_TILE_NA, INIT_TILE_CLOG,
                      INIT_DEPTH_AI, player1_ai, player2_ai);

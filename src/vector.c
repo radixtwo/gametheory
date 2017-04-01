@@ -45,9 +45,9 @@ static bool boost_alarm(vector_t const *vector) {
 
 static void boost_capacity(vector_t *vector) {
     vector->capacity = vector->multiplier * vector->capacity + vector->increment;
-    void *data_boost = realloc(vector->data, vector->capacity);
-    //void *data_boost = NULL;
-    //while (!(data_boost = realloc(vector->data, vector->capacity)));
+    //void *data_boost = realloc(vector->data, vector->capacity * vector->width);
+    void *data_boost = NULL;
+    while (!(data_boost = realloc(vector->data, vector->capacity * vector->width)));
     //assert(data_boost);
     vector->data = data_boost;
 }
