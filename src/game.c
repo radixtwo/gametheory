@@ -196,12 +196,34 @@ void game_reset(game_t *game) {
     data->state = node_dup(data->root, data->width);
     data->eval = 0;
     vector_append(data->moves, &data->state);
+}
+
+// resets 'game_t' data struct values
+void game_reset_score(game_t *game) {
+    data_t *data = game->data;
+    vector_clear(data->moves);
+    data->player = P_OAKLEY;
+    data->state = node_dup(data->root, data->width);
+    data->eval = 0;
+    vector_append(data->moves, &data->state);
     data->score[0] = 0;
     data->score[1] = 0;
 }
 
 // resets 'game_t' data struct values with new root node
 void game_reset_root(game_t *game, node_t const root) {
+    data_t *data = game->data;
+    vector_clear(data->moves);
+    data->player = P_OAKLEY;
+    free(data->root);
+    data->root = node_dup(root, data->width);
+    data->state = node_dup(data->root, data->width);
+    data->eval = 0;
+    vector_append(data->moves, &data->state);
+}
+
+// resets 'game_t' data struct values with new root node
+void game_reset_all(game_t *game, node_t const root) {
     data_t *data = game->data;
     vector_clear(data->moves);
     data->player = P_OAKLEY;
@@ -334,6 +356,19 @@ void game_advance(game_t *game) {
     free(move);
 }
 
+void game_advance2(game_t *game1, game_t *game2) {
+    data_t *data1 = game1->data;
+    data_t *data2 = game2->data;
+    player_t player = game_player(game1);
+    node_t move = NULL;
+    if ((player == P_OAKLEY && data1->player1_ai) || (player == P_TAYLOR && data1->player2_ai))
+        move = negamax_move(data1->negamax, game_state(game1), player, data1->depth, &data1->eval);
+    else
+        move = negamax_move(data2->negamax, game_state(game1), player, data2->depth, &data1->eval);
+    game_move(game1, move);
+    free(move);
+}
+
 void game_rewind(game_t *game, size_t nrewind) {
     size_t nmoves = vector_size(game->data->moves);
     if (nmoves > nrewind) {
@@ -345,35 +380,79 @@ void game_rewind(game_t *game, size_t nrewind) {
     }
 }
 
+bool game_rematch() {
+    printf("would you like to play again (y/n)? ");
+    char yn;
+    scanf(" %c", &yn);
+    while (yn != 'y' && yn != 'n') {
+        printf("must enter 'y' or 'n'!\n");
+        printf("would you like to play again (y/n)? ");
+        scanf(" %c", &yn);
+    }
+    return yn == 'y';
+/*
+    if (yn == 'y') {
+        printf("toggle player 1 (y/n)? ");
+        scanf(" %c", &yn);
+        if (yn == 'y')
+            game_toggle_ai(game, true, false);
+        printf("toggle player 2 (y/n)? ");
+        scanf(" %c", &yn);
+        if (yn == 'y')
+            game_toggle_ai(game, false, true);
+        return true;
+    } else
+        return false;
+*/
+}
+
 void game_play(game_t *game) {
     data_t *data = game->data;
-    while (!game->leaf(game, game_state(game))) {
-        publish_state(game);
-        if (player_human(game)) {
-            size_t nmoves = vector_size(game->data->moves);
-            char reverse;
-            if (data->player1_ai != data->player2_ai && nmoves > 2) {
-                printf("reverse last move (y/n)? ");
-                scanf(" %c", &reverse);
-                if (reverse == 'y') {
-                    game_rewind(game, 2);
-                    continue;
-                } 
-            } else if (nmoves > 1) {
-                printf("reverse last move (y/n)? ");
-                scanf(" %c", &reverse);
-                if (reverse == 'y') {
-                    game_rewind(game, 1);
-                    continue;
-                } 
+    do {
+        while (!game->leaf(game, game_state(game))) {
+            publish_state(game);
+            if (player_human(game)) {
+                size_t nmoves = vector_size(game->data->moves);
+                char reverse;
+                if (data->player1_ai != data->player2_ai && nmoves > 2) {
+                    printf("reverse last move (y/n)? ");
+                    scanf(" %c", &reverse);
+                    if (reverse == 'y') {
+                        game_rewind(game, 2);
+                        continue;
+                    } 
+                } else if (nmoves > 1) {
+                    printf("reverse last move (y/n)? ");
+                    scanf(" %c", &reverse);
+                    if (reverse == 'y') {
+                        game_rewind(game, 1);
+                        continue;
+                    } 
+                }
             }
+            game_advance(game);
+            //printf("eval = %d; heuristic = %d\n", -1 * game_player(game) * game->data->eval, game->heuristic(game, game_state(game)));
         }
-        game_advance(game);
+        publish_state(game);
+        player_t winner = game->winner(game, game_state(game));
+        printf("%s\n", winner == P_OAKLEY ? "player 1 wins!" : winner == P_TAYLOR ? "player 2 wins!" : "it's a draw!");
+        game_score_add(game, winner);
+        printf("score: %u - %u\n", game_score(game, P_OAKLEY), game_score(game, P_TAYLOR));
+        game_reset(game);
+    } while (game_rematch());;
+}
+
+void game_play2(game_t *game1, game_t *game2) {
+    int move_count = 0;
+    while (!game1->leaf(game1, game_state(game1))) {
+        printf("%d, ", move_count++);
+        //publish_state(game1);
+        game_advance2(game1, game2);
         //printf("eval = %d; heuristic = %d\n", -1 * game_player(game) * game->data->eval, game->heuristic(game, game_state(game)));
     }
-    publish_state(game);
-    player_t winner = game->winner(game, game_state(game));
+    player_t winner = game1->winner(game1, game_state(game1));
     printf("%s\n", winner == P_OAKLEY ? "player 1 wins!" : winner == P_TAYLOR ? "player 2 wins!" : "it's a draw!");
+    game1->publish(game1, game_state(game1));
 }
 
 /*

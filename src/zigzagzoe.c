@@ -561,6 +561,25 @@ static int  z3_heuristic(game_t const *game, node_t const node_raw) {
 */
 }
 
+static int z3_heuristic2(game_t const *game, node_t const node_raw) {
+    z3_config_t *config = game->config;
+    z3_node_t const node = node_raw;
+    uint8_t potency_max = z3_node_potency_max(config);
+    //int decisive = (1 + config->M * config->N) * potency_max + (1 + z3_node_nempty(config, node));
+    int decisive = potency_max * config->M * config->N * potency_max + (1 + z3_node_nempty(config, node));
+    player_t winner = z3_winner(game, node_raw);
+    if (winner)
+        return winner * decisive;
+    if (z3_node_stale(config, node))
+        return 0;
+    uint8_t potency_mega_p1 = z3_mega_potency_player(config, node, P_OAKLEY);
+    uint8_t potency_mega_p2 = z3_mega_potency_player(config, node, P_TAYLOR);
+    uint8_t potency_subsum_p1 = z3_subsum_potency_player(config, node, P_OAKLEY);
+    uint8_t potency_subsum_p2 = z3_subsum_potency_player(config, node, P_TAYLOR);
+    //return potency_mega_p1 - potency_mega_p2 + potency_subsum_p1 - potency_subsum_p2;
+    return potency_subsum_p1 - potency_subsum_p2;
+}
+
 // prints given node to standard output
 static void z3_publish(game_t const *game, node_t const node) {
     z3_node_print(game->config, node);
@@ -663,6 +682,13 @@ z3_t  *z3_init(bool player1_ai, bool player2_ai) {
                      INIT_DEPTH_AI, player1_ai, player2_ai);
 }
 
+z3_t  *z3_init2(bool player1_ai, bool player2_ai) {
+    uint8_t block_init = nkrand(INIT_M * INIT_N);
+    return z3_init2_w(INIT_M, INIT_N, INIT_K, block_init, INIT_STALE,
+                     INIT_TILE_P1, INIT_TILE_P2, INIT_TILE_NA, INIT_TILE_CLOG,
+                     INIT_DEPTH_AI, player1_ai, player2_ai);
+}
+
 // returns 'z3_t *' game initialized with passed values
 z3_t  *z3_init_w(uint8_t M, uint8_t N, uint8_t K, uint8_t block_init, z3_stale_t mate,
                  char tile_p1, char tile_p2, char tile_na, char tile_clog,
@@ -688,6 +714,39 @@ z3_t  *z3_init_w(uint8_t M, uint8_t N, uint8_t K, uint8_t block_init, z3_stale_t
                      &z3_spawn,
                      &z3_winner,
                      &z3_heuristic,
+                     &z3_publish,
+                     &z3_clone,
+                     NULL // &z3_stratify
+                 );
+    free(root);
+    game->config = config;
+    return game;
+}
+
+z3_t  *z3_init2_w(uint8_t M, uint8_t N, uint8_t K, uint8_t block_init, z3_stale_t mate,
+                 char tile_p1, char tile_p2, char tile_na, char tile_clog,
+                 uint8_t depth, bool player1_ai, bool player2_ai) {
+    z3_config_t config_raw = {.M = M, .N = N, .K = K,
+                              .mate = mate,
+                              .tile_p1 = tile_p1,
+                              .tile_p2 = tile_p2,
+                              .tile_na = tile_na,
+                              .tile_clog = tile_clog
+                              };
+    z3_config_t *config = malloc(sizeof(z3_config_t));
+    memcpy(config, &config_raw, sizeof(z3_config_t));
+    z3_node_t root = z3_node_root(config, block_init);
+    z3_t *game = game_init(
+                     root,
+                     z3_node_width(config),
+                     z3_heuristic_max(config),
+                     depth,
+                     player1_ai,
+                     player2_ai,
+                     &z3_leaf,
+                     &z3_spawn,
+                     &z3_winner,
+                     &z3_heuristic2,
                      &z3_publish,
                      &z3_clone,
                      NULL // &z3_stratify

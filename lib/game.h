@@ -89,12 +89,6 @@ game_t *game_init(
     stratify_t const stratify
 );
 
-// reset game variables
-void game_reset(game_t *game);
-
-// reset game variables with new root node
-void game_reset_root(game_t *game, node_t const root);
-
 // destructor
 void game_free(game_t *game);
 
@@ -125,6 +119,18 @@ unsigned game_score(game_t const *game, player_t player);
 void game_toggle_ai(game_t const *game, bool toggle_p1, bool toggle_p2);
 void game_score_add(game_t *game, player_t player);
 
+// reset game to initial state (except score)
+void game_reset(game_t *game);
+
+// reset game variables
+void game_reset_score(game_t *game);
+
+// reset game variables with new root node
+void game_reset_root(game_t *game, node_t const root);
+
+// reset all game variables with new root node
+void game_reset_all(game_t *game, node_t const root);
+
 
 //-------------//
 //  game play  //
@@ -136,14 +142,19 @@ void game_move(game_t *game, node_t move);
 // advance game by one move (ai or human)
 void game_advance(game_t *game);
 
+void game_advance2(game_t *game1, game_t *game2);
+
 // rewind game by 'nrewind' moves
-//void game_rewind(game_t *game, size_t nrewind);
+void game_rewind(game_t *game, size_t nrewind);
+
+// prompts user for new match
+bool game_rematch();
 
 // overall game play loop
 void game_play(game_t *game);
 
-// reset score & begin new match
-//void game_rematch(game_t *game);
+void game_play2(game_t *game1, game_t *game2);
+
 
 
 #endif // GAME_H
