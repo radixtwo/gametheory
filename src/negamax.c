@@ -59,6 +59,10 @@ static void memoize(negamax_t *negamax, node_t node, bound_t bound, uint8_t dept
 }
 
 static void node_free_except(node_t except, node_t *options, size_t noptions) {
+    if (noptions == 1) {
+        free(options);
+        return;
+    }
     for (size_t n = 0; n < noptions; ++n)
         if (options[n] && options[n] != except)
             free(options[n]);
@@ -90,7 +94,7 @@ static int negamax_search(negamax_t *negamax, node_t node, player_t player, uint
         return player * game->heuristic(game, node);
     size_t noptions;
     node_t *options = game->spawn(game, node, &noptions);
-    //fisheryates(options, noptions, sizeof(node_t));
+    fisheryates(options, noptions, sizeof(node_t));
     if (game->stratify)
         game->stratify(game, options, noptions);
     int value_best = -1 * game_heuristic_max(game);
@@ -136,6 +140,7 @@ node_t negamax_move(negamax_t *negamax, node_t node, player_t player, uint8_t de
     int alpha = -1 * game_heuristic_max(game), beta = game_heuristic_max(game), value_best = alpha;
     size_t noptions, nbest = 1;
     node_t *options = game->spawn(game, node, &noptions);
+    printf("negamax_move: noptions = %u\n", (unsigned)noptions);
     node_t best[noptions];
     for (size_t i = 0; i < noptions; ++i) {
         int value = -1 * negamax_search(negamax, options[i], -1 * player, depth - 1, -1 * beta, -1 * alpha);
@@ -148,7 +153,7 @@ node_t negamax_move(negamax_t *negamax, node_t node, player_t player, uint8_t de
     }
     if (eval)
         *eval = value_best;
-    //fisheryates(best, nbest, sizeof(node_t));
+    fisheryates(best, nbest, sizeof(node_t));
     if (game->stratify)
         game->stratify(game, best, nbest);
     printf("nbest: %d\n", nbest);

@@ -781,37 +781,41 @@ void z3_advance_ai2(z3_t *game1, z3_t *game2) {
         move = negamax_move(game_negamax(game2), game_state(game1), player, game_depth(game2), NULL);
     game1->publish(game1, move);
     game_move(game1, move);
-    printf("freeing move\n");
-    
+    printf("freeing move\n");    
     free(move);
     printf("freed\n");
 }
 
+static void z3_play_ai2_main(z3_t *game1, z3_t *game2, int zzz_count[2]) {
+    int move_count = 0;
+    while (!game1->leaf(game1, game_state(game1))) {
+        //printf("nmoves: %u\n", (unsigned)game_moves_size(game1));
+        printf("move %d\n", move_count++);
+        //game1->publish(game1, game_state(game1));
+        z3_advance_ai2(game1, game2);
+        //printf("eval = %d; heuristic = %d\n", -1 * game_player(game) * game->data->eval, game->heuristic(game, game_state(game)));
+    }
+    //game_moves_print(game1);
+    move_count = 0;
+    printf("\n");
+    //game1->publish(game1, game_state(game1));
+    player_t winner = game1->winner(game1, game_state(game1));
+    int8_t zzz = z3_node_zzz(game1->config, game_state(game1));
+    printf("%s\n", winner == P_OAKLEY ? "player 1 wins!" : winner == P_TAYLOR ? "player 2 wins!" : "it's a draw!");
+    game_score_add(game1, winner);
+    printf("score: %u - %u\n", game_score(game1, P_OAKLEY), game_score(game1, P_TAYLOR));
+    if (zzz)
+        ++zzz_count[winner == P_OAKLEY ? 0 : 1];
+    printf("zzz count: %d - %d\n", zzz_count[0], zzz_count[1]);
+    game_reset(game1);
+    
+}
+
 void z3_play_ai2(z3_t *game1, z3_t *game2) {
     int zzz_count[2] = {0, 0};
-    int move_count = 0;
-    do {
-        while (!game1->leaf(game1, game_state(game1))) {
-            printf("nmoves: %u\n", (unsigned)game_moves_size(game1));
-            printf("move %d\n", move_count++);
-            //game1->publish(game1, game_state(game1));
-            z3_advance_ai2(game1, game2);
-            //printf("eval = %d; heuristic = %d\n", -1 * game_player(game) * game->data->eval, game->heuristic(game, game_state(game)));
-        }
-        game_moves_print(game1);
-        move_count = 0;
-        printf("\n");
-        //game1->publish(game1, game_state(game1));
-        player_t winner = game1->winner(game1, game_state(game1));
-        int8_t zzz = z3_node_zzz(game1->config, game_state(game1));
-        printf("%s\n", winner == P_OAKLEY ? "player 1 wins!" : winner == P_TAYLOR ? "player 2 wins!" : "it's a draw!");
-        game_score_add(game1, winner);
-        printf("score: %u - %u\n", game_score(game1, P_OAKLEY), game_score(game1, P_TAYLOR));
-        if (zzz)
-            ++zzz_count[winner == P_OAKLEY ? 0 : 1];
-        printf("zzz count: %d - %d\n", zzz_count[0], zzz_count[1]);
-        game_reset(game1);
-    } while (game_prompt_rematch());;
+    z3_play_ai2_main(game1, game2, zzz_count);
+    while (game_prompt_rematch())
+        z3_play_ai2_main(game1, game2, zzz_count);
 }
 
 

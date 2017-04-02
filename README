@@ -24,3 +24,5 @@ to do list (2017-03-02)
     - or is it just a usage problem (e.g., freeing game_state while vector still holds node)
 - color the mega block when printing
 
+20170401) something is wrong with negamax, fisheryates, node_free_except, or game_move/zigzagzoe
+

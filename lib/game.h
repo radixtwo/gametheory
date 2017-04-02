@@ -110,10 +110,10 @@ bool game_player2_ai(game_t const *game);
 player_t game_player(game_t const *game);
 node_t game_state(game_t const *game);
 int game_eval(game_t const *game);
-node_t game_move_index(game_t const *game, size_t index);
+//node_t game_move_index(game_t const *game, size_t index);
 unsigned game_score(game_t const *game, player_t player);
-void game_moves_print(game_t const *game);
-size_t game_moves_size(game_t const *game);
+//void game_moves_print(game_t const *game);
+//size_t game_moves_size(game_t const *game);
 
 //-----------//
 //  setters  //
@@ -150,7 +150,7 @@ void game_advance(game_t *game);
 void game_advance_ai2(game_t *game1, game_t *game2);
 
 // rewind game by 'nrewind' moves
-void game_rewind(game_t *game, size_t nrewind);
+//void game_rewind(game_t *game, size_t nrewind);
 
 // prompts user for new match
 bool game_prompt_rematch();
