@@ -35,6 +35,7 @@ _____________________
 */
 
 #include "zigzagzoe.h"
+#include "negamax.h"
 #include "nkrand.h"
 #include "ansicolor.h"
 #include <stdlib.h>
@@ -523,6 +524,11 @@ static int  z3_heuristic_max(z3_config_t const *config) {
     return potency_max * config->M * config->N * potency_max + (1 + z3_nslots(config));
 }
 
+static int  z3_heuristic_max2(z3_config_t const *config) {
+    uint8_t potency_max = z3_node_potency_max(config);
+    return config->M * config->N * potency_max + (1 + z3_nslots(config));
+}
+
 // returns heuristic value of given node
 static int  z3_heuristic(game_t const *game, node_t const node_raw) {
     z3_config_t *config = game->config;
@@ -572,8 +578,8 @@ static int z3_heuristic2(game_t const *game, node_t const node_raw) {
         return winner * decisive;
     if (z3_node_stale(config, node))
         return 0;
-    uint8_t potency_mega_p1 = z3_mega_potency_player(config, node, P_OAKLEY);
-    uint8_t potency_mega_p2 = z3_mega_potency_player(config, node, P_TAYLOR);
+    //uint8_t potency_mega_p1 = z3_mega_potency_player(config, node, P_OAKLEY);
+    //uint8_t potency_mega_p2 = z3_mega_potency_player(config, node, P_TAYLOR);
     uint8_t potency_subsum_p1 = z3_subsum_potency_player(config, node, P_OAKLEY);
     uint8_t potency_subsum_p2 = z3_subsum_potency_player(config, node, P_TAYLOR);
     //return potency_mega_p1 - potency_mega_p2 + potency_subsum_p1 - potency_subsum_p2;
@@ -682,9 +688,9 @@ z3_t  *z3_init(bool player1_ai, bool player2_ai) {
                      INIT_DEPTH_AI, player1_ai, player2_ai);
 }
 
-z3_t  *z3_init2(bool player1_ai, bool player2_ai) {
+z3_t  *z3_init_h2(bool player1_ai, bool player2_ai) {
     uint8_t block_init = nkrand(INIT_M * INIT_N);
-    return z3_init2_w(INIT_M, INIT_N, INIT_K, block_init, INIT_STALE,
+    return z3_init_h2_w(INIT_M, INIT_N, INIT_K, block_init, INIT_STALE,
                      INIT_TILE_P1, INIT_TILE_P2, INIT_TILE_NA, INIT_TILE_CLOG,
                      INIT_DEPTH_AI, player1_ai, player2_ai);
 }
@@ -723,7 +729,7 @@ z3_t  *z3_init_w(uint8_t M, uint8_t N, uint8_t K, uint8_t block_init, z3_stale_t
     return game;
 }
 
-z3_t  *z3_init2_w(uint8_t M, uint8_t N, uint8_t K, uint8_t block_init, z3_stale_t mate,
+z3_t  *z3_init_h2_w(uint8_t M, uint8_t N, uint8_t K, uint8_t block_init, z3_stale_t mate,
                  char tile_p1, char tile_p2, char tile_na, char tile_clog,
                  uint8_t depth, bool player1_ai, bool player2_ai) {
     z3_config_t config_raw = {.M = M, .N = N, .K = K,
@@ -739,7 +745,7 @@ z3_t  *z3_init2_w(uint8_t M, uint8_t N, uint8_t K, uint8_t block_init, z3_stale_
     z3_t *game = game_init(
                      root,
                      z3_node_width(config),
-                     z3_heuristic_max(config),
+                     z3_heuristic_max2(config),
                      depth,
                      player1_ai,
                      player2_ai,
@@ -766,8 +772,47 @@ void  z3_free(z3_t *game) {
     game_free(game);
 }
 
+void z3_advance_ai2(z3_t *game1, z3_t *game2) {
+    player_t player = game_player(game1);
+    node_t move = NULL;
+    if ((player == P_OAKLEY && game_player1_ai(game1)) || (player == P_TAYLOR && game_player2_ai(game1)))
+        move = negamax_move(game_negamax(game1), game_state(game1), player, game_depth(game1), NULL);
+    else
+        move = negamax_move(game_negamax(game2), game_state(game1), player, game_depth(game2), NULL);
+    game1->publish(game1, move);
+    game_move(game1, move);
+    printf("freeing move\n");
+    
+    free(move);
+    printf("freed\n");
+}
 
-
+void z3_play_ai2(z3_t *game1, z3_t *game2) {
+    int zzz_count[2] = {0, 0};
+    int move_count = 0;
+    do {
+        while (!game1->leaf(game1, game_state(game1))) {
+            printf("nmoves: %u\n", (unsigned)game_moves_size(game1));
+            printf("move %d\n", move_count++);
+            //game1->publish(game1, game_state(game1));
+            z3_advance_ai2(game1, game2);
+            //printf("eval = %d; heuristic = %d\n", -1 * game_player(game) * game->data->eval, game->heuristic(game, game_state(game)));
+        }
+        game_moves_print(game1);
+        move_count = 0;
+        printf("\n");
+        //game1->publish(game1, game_state(game1));
+        player_t winner = game1->winner(game1, game_state(game1));
+        int8_t zzz = z3_node_zzz(game1->config, game_state(game1));
+        printf("%s\n", winner == P_OAKLEY ? "player 1 wins!" : winner == P_TAYLOR ? "player 2 wins!" : "it's a draw!");
+        game_score_add(game1, winner);
+        printf("score: %u - %u\n", game_score(game1, P_OAKLEY), game_score(game1, P_TAYLOR));
+        if (zzz)
+            ++zzz_count[winner == P_OAKLEY ? 0 : 1];
+        printf("zzz count: %d - %d\n", zzz_count[0], zzz_count[1]);
+        game_reset(game1);
+    } while (game_prompt_rematch());;
+}
 
 
 

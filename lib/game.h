@@ -18,6 +18,8 @@
 //  TYPE DEFINITIONS  //
 //--------------------//
 
+// 'negamax_t' typedef
+typedef struct _negamax_t negamax_t;
 
 // client-specified node reference typedef
 typedef void *node_t;
@@ -32,7 +34,7 @@ typedef enum _player_t {
     P_DAKOTA = 0
 } player_t;
 
-// private data struct typedef (defined in 'game.c')
+// (private) data struct typedef definition
 struct _data_t;
 typedef struct _data_t data_t;
 
@@ -101,6 +103,7 @@ void game_free(game_t *game);
 node_t game_root(game_t const *game);
 size_t game_width(game_t const *game);
 int game_heuristic_max(game_t const *game);
+negamax_t *game_negamax(game_t const *game);
 uint8_t game_depth(game_t const *game);
 bool game_player1_ai(game_t const *game);
 bool game_player2_ai(game_t const *game);
@@ -109,7 +112,8 @@ node_t game_state(game_t const *game);
 int game_eval(game_t const *game);
 node_t game_move_index(game_t const *game, size_t index);
 unsigned game_score(game_t const *game, player_t player);
-
+void game_moves_print(game_t const *game);
+size_t game_moves_size(game_t const *game);
 
 //-----------//
 //  setters  //
@@ -142,20 +146,20 @@ void game_move(game_t *game, node_t move);
 // advance game by one move (ai or human)
 void game_advance(game_t *game);
 
-void game_advance2(game_t *game1, game_t *game2);
+// advance game by one move (ai vs. ai)
+void game_advance_ai2(game_t *game1, game_t *game2);
 
 // rewind game by 'nrewind' moves
 void game_rewind(game_t *game, size_t nrewind);
 
 // prompts user for new match
-bool game_rematch();
+bool game_prompt_rematch();
 
 // overall game play loop
 void game_play(game_t *game);
 
-void game_play2(game_t *game1, game_t *game2);
-
-
+// overall game play loop (ai vs. ai)
+void game_play_ai2(game_t *game1, game_t *game2);
 
 #endif // GAME_H
 

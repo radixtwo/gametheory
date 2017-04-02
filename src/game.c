@@ -29,8 +29,7 @@
 //------------------------//
 
 
-// 'game_t' data struct definition
-struct _data_t {
+typedef struct _data_t {
     node_t root;
     size_t width;
     int heuristic_max;
@@ -46,7 +45,7 @@ struct _data_t {
 
     vector_t *moves;
     unsigned score[2];
-};
+} data_t;
 
 
 //--------------------//
@@ -94,15 +93,14 @@ static void moves_trash(void *node_ref) {
     free(*(node_t *)node_ref);
 }
 
-/*
 // static variable for 'moves_printv'
-static game_t *game_moves;
+//static game_t *game_moves;
 
 // 'moves' vector print function
 static void moves_printv(void const *node_ref) {
-    game_moves->publish(game_moves, *(node_t *)node_ref);
+    printf("%p", node_ref);
+    //game_moves->publish(game_moves, *(node_t *)node_ref);
 }
-*/
 
 
 //-----------------------//
@@ -188,9 +186,10 @@ game_t *game_init(node_t const root, size_t const width, int const heuristic_max
     return game;
 }
 
-// resets 'game_t' data struct values
+// resets 'game_t' data struct for new match
 void game_reset(game_t *game) {
     data_t *data = game->data;
+    printf("clearing moves\n");
     vector_clear(data->moves);
     data->player = P_OAKLEY;
     data->state = node_dup(data->root, data->width);
@@ -198,7 +197,7 @@ void game_reset(game_t *game) {
     vector_append(data->moves, &data->state);
 }
 
-// resets 'game_t' data struct values
+// resets 'game_t' data struct values for rematch
 void game_reset_score(game_t *game) {
     data_t *data = game->data;
     vector_clear(data->moves);
@@ -209,6 +208,7 @@ void game_reset_score(game_t *game) {
     data->score[0] = 0;
     data->score[1] = 0;
 }
+
 
 // resets 'game_t' data struct values with new root node
 void game_reset_root(game_t *game, node_t const root) {
@@ -262,11 +262,10 @@ int game_heuristic_max(game_t const *game) {
     return game->data->heuristic_max;
 }
 
-/*
+// NOTE: DO NOT MODIFY RETURN VALUE!!!!
 negamax_t *game_negamax(game_t const *game) {
     return game->data->negamax;
 }
-*/
 
 uint8_t game_depth(game_t const *game) {
     return game->data->depth;
@@ -302,6 +301,13 @@ unsigned game_score(game_t const *game, player_t player) {
     return game->data->score[player == P_ONE ? 0 : 1];
 }
 
+void game_moves_print(game_t const *game) {
+    vector_print(game->data->moves, &moves_printv);
+}
+
+size_t game_moves_size(game_t const *game) {
+    return vector_size(game->data->moves);
+}
 
 //-----------//
 //  setters  //
@@ -356,15 +362,15 @@ void game_advance(game_t *game) {
     free(move);
 }
 
-void game_advance2(game_t *game1, game_t *game2) {
+void game_advance_ai2(game_t *game1, game_t *game2) {
     data_t *data1 = game1->data;
     data_t *data2 = game2->data;
-    player_t player = game_player(game1);
+    player_t player = data1->player;
     node_t move = NULL;
     if ((player == P_OAKLEY && data1->player1_ai) || (player == P_TAYLOR && data1->player2_ai))
-        move = negamax_move(data1->negamax, game_state(game1), player, data1->depth, &data1->eval);
+        move = negamax_move(data1->negamax, data1->state, player, data1->depth, &data1->eval);
     else
-        move = negamax_move(data2->negamax, game_state(game1), player, data2->depth, &data1->eval);
+        move = negamax_move(data2->negamax, data1->state, player, data2->depth, &data2->eval);
     game_move(game1, move);
     free(move);
 }
@@ -380,7 +386,7 @@ void game_rewind(game_t *game, size_t nrewind) {
     }
 }
 
-bool game_rematch() {
+bool game_prompt_rematch() {
     printf("would you like to play again (y/n)? ");
     char yn;
     scanf(" %c", &yn);
@@ -439,27 +445,28 @@ void game_play(game_t *game) {
         game_score_add(game, winner);
         printf("score: %u - %u\n", game_score(game, P_OAKLEY), game_score(game, P_TAYLOR));
         game_reset(game);
-    } while (game_rematch());;
+    } while (game_prompt_rematch());;
 }
 
-void game_play2(game_t *game1, game_t *game2) {
+
+void game_play_ai2(game_t *game1, game_t *game2) {
     int move_count = 0;
-    while (!game1->leaf(game1, game_state(game1))) {
-        printf("%d, ", move_count++);
-        //publish_state(game1);
-        game_advance2(game1, game2);
-        //printf("eval = %d; heuristic = %d\n", -1 * game_player(game) * game->data->eval, game->heuristic(game, game_state(game)));
-    }
-    player_t winner = game1->winner(game1, game_state(game1));
-    printf("%s\n", winner == P_OAKLEY ? "player 1 wins!" : winner == P_TAYLOR ? "player 2 wins!" : "it's a draw!");
-    game1->publish(game1, game_state(game1));
+    do {
+        while (!game1->leaf(game1, game_state(game1))) {
+            printf("move %d\n", move_count++);
+            //game1->publish(game1, game_state(game1));
+            game_advance_ai2(game1, game2);
+            //printf("eval = %d; heuristic = %d\n", -1 * game_player(game) * game->data->eval, game->heuristic(game, game_state(game)));
+        }
+        move_count = 0;
+        printf("\n");
+        //game1->publish(game1, game_state(game1));
+        player_t winner = game1->winner(game1, game_state(game1));
+        printf("%s\n", winner == P_OAKLEY ? "player 1 wins!" : winner == P_TAYLOR ? "player 2 wins!" : "it's a draw!");
+        game_score_add(game1, winner);
+        printf("score: %u - %u\n", game_score(game1, P_OAKLEY), game_score(game1, P_TAYLOR));
+        game_reset(game1);
+    } while (game_prompt_rematch());;
 }
-
-/*
-void game_rematch(game_t *game) {
-    
-}
-*/
-
 
 
