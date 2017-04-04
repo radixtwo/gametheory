@@ -128,6 +128,14 @@ void negamax_free(negamax_t *negamax) {
     free(negamax);
 }
 
+size_t negamax_ttable_size(negamax_t const *negamax) {
+    return hashmap_size(negamax->ttable);
+}
+
+size_t negamax_nbytes(negamax_t const *negamax) {
+    return hashmap_nbytes(negamax->ttable);
+}
+
 int negamax_eval(negamax_t *negamax, node_t node, player_t player, uint8_t depth) {
     return negamax_search(negamax, node, player, depth, -1 * game_heuristic_max(negamax->game), game_heuristic_max(negamax->game));
 }
@@ -160,9 +168,5 @@ node_t negamax_move(negamax_t *negamax, node_t node, player_t player, uint8_t de
     node_t move = best[0];
     node_free_except(move, options, noptions);
     return move;
-}
-
-size_t negamax_nbytes(negamax_t const *negamax) {
-    return hashmap_nbytes(negamax->ttable);
 }
 

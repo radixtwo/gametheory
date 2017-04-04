@@ -134,6 +134,7 @@ void game_reset_all(game_t *game, node_t const root);
 
 void game_toggle_ai(game_t const *game, bool toggle_p1, bool toggle_p2);
 void game_score_add(game_t *game, player_t player);
+void game_publish_state(game_t *game);
 
 
 //-------------//

@@ -117,13 +117,13 @@ static node_t human_move(game_t *game) {
         if (n < noffspring - 1)
             printf(", ");
     }
-    printf("): ");
+    printf("):\n");
     int index;
     char choice;
     scanf(" %c", &choice);
     index = choice - (int)'a';
     while (index < 0 || index >= (int)noffspring) {
-        printf("invalid choice!\nenter choice: ");
+        printf("invalid choice!\nenter choice:\n");
         scanf(" %c", &choice);
         index = choice - (int)'a';
     }
@@ -335,6 +335,10 @@ void game_score_add(game_t *game, player_t player) {
     game->data->score[player == P_ONE ? 0 : 1]++;
 }
 
+void game_publish_state(game_t *game) {
+    publish_state(game);
+}
+
 
 //-------------//
 //  game play  //
@@ -396,12 +400,12 @@ void game_rewind(game_t *game, size_t nrewind) {
 }
 
 bool game_prompt_rematch() {
-    printf("would you like to play again (y/n)? ");
+    printf("would you like to play again (y/n)?\n");
     char yn;
     scanf(" %c", &yn);
     while (yn != 'y' && yn != 'n') {
         printf("must enter 'y' or 'n'!\n");
-        printf("would you like to play again (y/n)? ");
+        printf("would you like to play again (y/n)?\n");
         scanf(" %c", &yn);
     }
     return yn == 'y';
@@ -430,14 +434,14 @@ void game_play(game_t *game) {
                 size_t nmoves = vector_size(game->data->moves);
                 char reverse;
                 if (data->player1_ai != data->player2_ai && nmoves > 2) {
-                    printf("reverse last move (y/n)? ");
+                    printf("reverse last move (y/n)?\n");
                     scanf(" %c", &reverse);
                     if (reverse == 'y') {
                         game_rewind(game, 2);
                         continue;
                     } 
                 } else if (nmoves > 1) {
-                    printf("reverse last move (y/n)? ");
+                    printf("reverse last move (y/n)?\n");
                     scanf(" %c", &reverse);
                     if (reverse == 'y') {
                         game_rewind(game, 1);

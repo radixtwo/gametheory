@@ -8,11 +8,11 @@
 int main() {
     srand(time(NULL));
     int type = 0;
-    printf("%sregular match or heuristic test (1, 2)? ", ANSI.erase);
+    printf("%sregular match or heuristic test (1, 2)?\n", ANSI.erase);
     scanf(" %d", &type);
     if (type == 1) {
         z3_t *game = z3_init(true, true);
-        printf("HvH, HvAI, AIvH, or AIvAI (1, 2, 3, 4)? ");
+        printf("HvH, HvAI, AIvH, or AIvAI (1, 2, 3, 4)?\n");
         scanf(" %d", &type);
         while (type < 1 || type > 4) {
             switch(type) {
@@ -28,7 +28,7 @@ int main() {
                     game_toggle_ai(game, true, true);
                     break;
                 default:
-                    printf("must enter '1', '2', '3', or '4'! ");
+                    printf("must enter '1', '2', '3', or '4'!\n");
                     scanf(" %d", &type);
                     break;
             }
@@ -38,7 +38,7 @@ int main() {
     } else {
         z3_t *game1 = z3_init(true, false);
         z3_t *game2 = z3_init_h2(false, true);
-        printf("C1vC2 or C2vC1 (1, 2)? ");
+        printf("C1vC2 or C2vC1 (1, 2)?\n");
         scanf(" %d", &type);
         while (type < 1 || type > 2) {
             switch(type) {
@@ -49,7 +49,7 @@ int main() {
                     game_toggle_ai(game2, true, true);
                     break;
                 default:
-                    printf("must enter '1' or '2'! ");
+                    printf("must enter '1' or '2'!\n");
                     scanf(" %d", &type);
                     break;
             }
