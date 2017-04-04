@@ -9,7 +9,7 @@ int nkrand(size_t mod) {
 }
 
 // fisher-yates shuffle array
-void fisheryates(void *arr, size_t n, size_t width) {
+void fyshuffle(void *arr, size_t n, size_t width) {
     if (n <= 1)
         return;
     char tmp[width];

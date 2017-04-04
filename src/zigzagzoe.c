@@ -52,7 +52,7 @@ _____________________
 #define INIT_TILE_P2    'O'
 #define INIT_TILE_NA    '-'
 #define INIT_TILE_CLOG  '$'
-#define INIT_DEPTH_AI   8
+#define INIT_DEPTH_AI   7
 #define INIT_STALE      Z3_WIN
 
 typedef struct _z3_config_t {
@@ -572,7 +572,7 @@ static int z3_heuristic2(game_t const *game, node_t const node_raw) {
     z3_node_t const node = node_raw;
     uint8_t potency_max = z3_node_potency_max(config);
     //int decisive = (1 + config->M * config->N) * potency_max + (1 + z3_node_nempty(config, node));
-    int decisive = potency_max * config->M * config->N * potency_max + (1 + z3_node_nempty(config, node));
+    int decisive = config->M * config->N * potency_max + (1 + z3_node_nempty(config, node));
     player_t winner = z3_winner(game, node_raw);
     if (winner)
         return winner * decisive;
@@ -779,25 +779,22 @@ void z3_advance_ai2(z3_t *game1, z3_t *game2) {
         move = negamax_move(game_negamax(game1), game_state(game1), player, game_depth(game1), NULL);
     else
         move = negamax_move(game_negamax(game2), game_state(game1), player, game_depth(game2), NULL);
-    game1->publish(game1, move);
+    //game1->publish(game1, move);
     game_move(game1, move);
-    printf("freeing move\n");    
     free(move);
-    printf("freed\n");
 }
 
 static void z3_play_ai2_main(z3_t *game1, z3_t *game2, int zzz_count[2]) {
     int move_count = 0;
     while (!game1->leaf(game1, game_state(game1))) {
-        //printf("nmoves: %u\n", (unsigned)game_moves_size(game1));
-        printf("move %d\n", move_count++);
         //game1->publish(game1, game_state(game1));
         z3_advance_ai2(game1, game2);
         //printf("eval = %d; heuristic = %d\n", -1 * game_player(game) * game->data->eval, game->heuristic(game, game_state(game)));
+        printf("ttable size: %u Mb, %u Mb\n", (unsigned)(negamax_nbytes(game_negamax(game1)))/1024, (unsigned)(negamax_nbytes(game_negamax(game2)))/1024);
+        move_count++;
     }
     //game_moves_print(game1);
-    move_count = 0;
-    printf("\n");
+    printf("move %d\n", move_count);
     //game1->publish(game1, game_state(game1));
     player_t winner = game1->winner(game1, game_state(game1));
     int8_t zzz = z3_node_zzz(game1->config, game_state(game1));

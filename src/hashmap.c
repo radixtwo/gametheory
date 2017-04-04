@@ -47,7 +47,12 @@ struct _hashmap_t {
 
 // entry_t utilities //
 
-// returns 
+// returns
+ 
+static size_t entry_width(size_t width_k, size_t width_v) {
+    return sizeof(entry_t *) + width_k + width_v;
+}
+
 static entry_t entry_next(entry_t const entry) {
     return *(entry_t *)entry;
 }
@@ -271,6 +276,10 @@ void *hashmap_get(hashmap_t const *hashmap, void const *key) {
     return NULL;
 }
 
+size_t hashmap_nbytes(hashmap_t const *hashmap) {
+    return hashmap->size * entry_width(hashmap->width_k, hashmap->width_v) + hashmap->nbuckets * sizeof(entry_t);
+}
+
 // modifiers
 
 void hashmap_set(hashmap_t *hashmap, void const *key, void const *value) {
@@ -405,4 +414,14 @@ void hashmap_print_sort(hashmap_t const *hashmap, printkv_t const printkv, compa
     vector_free(keys);
 }
 */
+
+
+
+
+
+
+
+
+
+
 

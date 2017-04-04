@@ -40,6 +40,7 @@ void hashmap_set_trash(hashmap_t *hashmap, trash_t const trash);
 // getters
 size_t hashmap_size(hashmap_t const *hashmap);
 void *hashmap_get(hashmap_t const *hashmap, void const *key);
+size_t hashmap_nbytes(hashmap_t const *hashmap);
 
 // modifiers
 void hashmap_set(hashmap_t *hashmap, void const *key, void const *value);

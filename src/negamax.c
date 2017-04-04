@@ -10,7 +10,7 @@
 #define DEBUG_MODE          0
 #define BRAIN_NBUCKETS      49
 #define BRAIN_MULTIPLIER    28
-#define BRAIN_INCREMENT     7
+#define BRAIN_INCREMENT     5
 #define BRAIN_LOADFACTOR    2
 
 /*--------------------*/
@@ -59,13 +59,10 @@ static void memoize(negamax_t *negamax, node_t node, bound_t bound, uint8_t dept
 }
 
 static void node_free_except(node_t except, node_t *options, size_t noptions) {
-    if (noptions == 1) {
-        free(options);
-        return;
-    }
     for (size_t n = 0; n < noptions; ++n)
-        if (options[n] && options[n] != except)
+        if (options[n] && options[n] != except) {
             free(options[n]);
+        }
     free(options);
 }
 
@@ -94,7 +91,7 @@ static int negamax_search(negamax_t *negamax, node_t node, player_t player, uint
         return player * game->heuristic(game, node);
     size_t noptions;
     node_t *options = game->spawn(game, node, &noptions);
-    fisheryates(options, noptions, sizeof(node_t));
+    fyshuffle(options, noptions, sizeof(node_t));
     if (game->stratify)
         game->stratify(game, options, noptions);
     int value_best = -1 * game_heuristic_max(game);
@@ -140,7 +137,11 @@ node_t negamax_move(negamax_t *negamax, node_t node, player_t player, uint8_t de
     int alpha = -1 * game_heuristic_max(game), beta = game_heuristic_max(game), value_best = alpha;
     size_t noptions, nbest = 1;
     node_t *options = game->spawn(game, node, &noptions);
-    printf("negamax_move: noptions = %u\n", (unsigned)noptions);
+    if (!eval && noptions == 1) {
+        node_t move = options[0];
+        free(options);
+        return move;
+    }
     node_t best[noptions];
     for (size_t i = 0; i < noptions; ++i) {
         int value = -1 * negamax_search(negamax, options[i], -1 * player, depth - 1, -1 * beta, -1 * alpha);
@@ -153,12 +154,15 @@ node_t negamax_move(negamax_t *negamax, node_t node, player_t player, uint8_t de
     }
     if (eval)
         *eval = value_best;
-    fisheryates(best, nbest, sizeof(node_t));
+    fyshuffle(best, nbest, sizeof(node_t));
     if (game->stratify)
         game->stratify(game, best, nbest);
-    printf("nbest: %d\n", nbest);
     node_t move = best[0];
     node_free_except(move, options, noptions);
     return move;
+}
+
+size_t negamax_nbytes(negamax_t const *negamax) {
+    return hashmap_nbytes(negamax->ttable);
 }
 
