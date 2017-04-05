@@ -428,8 +428,9 @@ bool game_prompt_rematch() {
 void game_play(game_t *game) {
     data_t *data = game->data;
     do {
+        int move_count = 0;
         while (!game->leaf(game, game_state(game))) {
-            publish_state(game);
+            //publish_state(game);
             if (player_human(game)) {
                 size_t nmoves = vector_size(game->data->moves);
                 char reverse;
@@ -451,12 +452,23 @@ void game_play(game_t *game) {
             }
             game_advance(game);
             //printf("eval = %d; heuristic = %d\n", -1 * game_player(game) * game->data->eval, game->heuristic(game, game_state(game)));
+            if (move_count % 2) {
+                unsigned game_nbytes = negamax_nbytes(data->negamax);
+                unsigned game_size = negamax_ttable_size(data->negamax);
+                printf("memory: %f MiB\n", (double)game_nbytes/1024/1024);
+                printf("ttable:  %u\n", game_size);
+                printf("\n");
+            }
+            ++move_count;
         }
-        publish_state(game);
+        //publish_state(game);
         player_t winner = game->winner(game, game_state(game));
-        printf("%s\n", winner == P_OAKLEY ? "player 1 wins!" : winner == P_TAYLOR ? "player 2 wins!" : "it's a draw!");
         game_score_add(game, winner);
-        printf("score: %u - %u\n", game_score(game, P_OAKLEY), game_score(game, P_TAYLOR));
+        printf("\n");
+        printf("%s\n", winner == P_OAKLEY ? "player 1 wins!" : winner == P_TAYLOR ? "player 2 wins!" : "it's a draw!");
+        printf("nmoves:\t%d\n", move_count);
+        printf("score:\t%u - %u\n", game_score(game, P_OAKLEY), game_score(game, P_TAYLOR));
+        printf("\n");
         game_reset(game);
     } while (game_prompt_rematch());;
 }

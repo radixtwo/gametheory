@@ -53,7 +53,7 @@ _____________________
 #define INIT_TILE_P2    'O'
 #define INIT_TILE_NA    '-'
 #define INIT_TILE_CLOG  '$'
-#define INIT_DEPTH_AI   7
+#define INIT_DEPTH_AI   6
 #define INIT_STALE      Z3_WIN
 
 typedef struct _z3_config_t {
@@ -786,26 +786,24 @@ void z3_advance_ai2(z3_t *game1, z3_t *game2) {
 }
 
 static void z3_play_ai2_main(z3_t *game1, z3_t *game2, int zzz_count[2]) {
+    z3_config_t *config1 = game1->config;
     int move_count = 0;
     while (!game1->leaf(game1, game_state(game1))) {
         //game_publish_state(game1);
         //game1->publish(game1, game_state(game1));
         z3_advance_ai2(game1, game2);
         //printf("eval = %d; heuristic = %d\n", -1 * game_player(game) * game->data->eval, game->heuristic(game, game_state(game)));
-        if (move_count % 2 == 1) {
-            unsigned game1_nbytes = (unsigned)(negamax_nbytes(game_negamax(game1)));
-            unsigned game2_nbytes = (unsigned)(negamax_nbytes(game_negamax(game2)));
-            unsigned game1_size = (unsigned)negamax_ttable_size(game_negamax(game1));
-            unsigned game2_size = (unsigned)negamax_ttable_size(game_negamax(game2));
-            printf("memory: (%f + %f) MiB = %f MiB\n", (double)game1_nbytes/1024/1024, (double)game2_nbytes/1024/1024, ((double)game1_nbytes + game2_nbytes)/1024/1024);
-            printf("ttable:  %u, %u, 1:2 -> %f, 2:1 -> %f\n", game1_size, game2_size, (double)game1_size / game2_size, (double)game2_size / game1_size);
-            printf("\n");
+        if (move_count % 2) {
         }
         ++move_count;
     }
     //game_moves_print(game1);
     //game_publish_state(game1);
     //game1->publish(game1, game_state(game1));
+    unsigned game1_nbytes = (unsigned)(negamax_nbytes(game_negamax(game1)));
+    unsigned game2_nbytes = (unsigned)(negamax_nbytes(game_negamax(game2)));
+    unsigned game1_size = (unsigned)negamax_ttable_size(game_negamax(game1));
+    unsigned game2_size = (unsigned)negamax_ttable_size(game_negamax(game2));
     player_t winner = game1->winner(game1, game_state(game1));
     game_score_add(game1, winner);
     int8_t zzz = z3_node_zzz(game1->config, game_state(game1));
@@ -813,12 +811,17 @@ static void z3_play_ai2_main(z3_t *game1, z3_t *game2, int zzz_count[2]) {
         ++zzz_count[winner == P_OAKLEY ? 0 : 1];
     printf("\n");
     printf("%s\n", winner == P_OAKLEY ? "player 1 wins!" : winner == P_TAYLOR ? "player 2 wins!" : "it's a draw!");
+    printf("memory: (%f + %f) MiB = %f MiB\n", (double)game1_nbytes/1024/1024, (double)game2_nbytes/1024/1024, ((double)game1_nbytes + game2_nbytes)/1024/1024);
+    printf("ttable:  %u, %u, 1:2 -> %f, 2:1 -> %f\n", game1_size, game2_size, (double)game1_size / game2_size, (double)game2_size / game1_size);
     printf("nmoves:\t%d\n", move_count);
     printf("score:\t%u - %u\n", game_score(game1, P_OAKLEY), game_score(game1, P_TAYLOR));
     printf("zzz:\t%d - %d\n", zzz_count[0], zzz_count[1]);
     printf("\n");
     //sleep(2);
-    game_reset(game1);
+    uint8_t block_init = nkrand(config1->M * config1->N);
+    z3_node_t root = z3_node_root(config1, block_init);
+    game_reset_root(game1, root);
+    free(root);
 }
 
 void z3_play_ai2(z3_t *game1, z3_t *game2) {
