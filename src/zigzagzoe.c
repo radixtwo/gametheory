@@ -82,6 +82,13 @@ typedef char *z3_node_t;
 //____________________//
 
 
+// returns heap-allocated duplicate of passed node
+static inline z3_node_t z3_node_dup(z3_t const *game, z3_node_t node) {
+    z3_node_t dup = malloc(game_width(game));
+    memcpy(dup, node, game_width(game));
+    return dup;
+}
+
 // returns number of slots on board
 static inline uint8_t z3_nslots(z3_config_t const *config) {
     return config->M * config->N * config->M * config->N;
@@ -527,6 +534,11 @@ static int  z3_heuristic_max(z3_config_t const *config) {
 
 static int  z3_heuristic_max2(z3_config_t const *config) {
     uint8_t potency_max = z3_node_potency_max(config);
+    return potency_max + config->M * config->N * potency_max + (1 + z3_nslots(config));
+}
+
+static int  z3_heuristic_max3(z3_config_t const *config) {
+    uint8_t potency_max = z3_node_potency_max(config);
     return config->M * config->N * potency_max + (1 + z3_nslots(config));
 }
 
@@ -569,6 +581,25 @@ static int  z3_heuristic(game_t const *game, node_t const node_raw) {
 }
 
 static int z3_heuristic2(game_t const *game, node_t const node_raw) {
+    z3_config_t *config = game->config;
+    z3_node_t const node = node_raw;
+    uint8_t potency_max = z3_node_potency_max(config);
+    //int decisive = (1 + config->M * config->N) * potency_max + (1 + z3_node_nempty(config, node));
+    int decisive = potency_max + config->M * config->N * potency_max + (1 + z3_node_nempty(config, node));
+    player_t winner = z3_winner(game, node_raw);
+    if (winner)
+        return winner * decisive;
+    if (z3_node_stale(config, node))
+        return 0;
+    uint8_t potency_mega_p1 = z3_mega_potency_player(config, node, P_OAKLEY);
+    uint8_t potency_mega_p2 = z3_mega_potency_player(config, node, P_TAYLOR);
+    uint8_t potency_subsum_p1 = z3_subsum_potency_player(config, node, P_OAKLEY);
+    uint8_t potency_subsum_p2 = z3_subsum_potency_player(config, node, P_TAYLOR);
+    return potency_mega_p1 - potency_mega_p2 + potency_subsum_p1 - potency_subsum_p2;
+    //return potency_subsum_p1 - potency_subsum_p2;
+}
+
+static int z3_heuristic3(game_t const *game, node_t const node_raw) {
     z3_config_t *config = game->config;
     z3_node_t const node = node_raw;
     uint8_t potency_max = z3_node_potency_max(config);
@@ -713,14 +744,14 @@ z3_t  *z3_init_w(uint8_t M, uint8_t N, uint8_t K, uint8_t block_init, z3_stale_t
     z3_t *game = game_init(
                      root,
                      z3_node_width(config),
-                     z3_heuristic_max(config),
+                     z3_heuristic_max2(config),
                      depth,
                      player1_ai,
                      player2_ai,
                      &z3_leaf,
                      &z3_spawn,
                      &z3_winner,
-                     &z3_heuristic,
+                     &z3_heuristic2,
                      &z3_publish,
                      &z3_clone,
                      NULL // &z3_stratify
@@ -789,7 +820,7 @@ static void z3_play_ai2_main(z3_t *game1, z3_t *game2, int zzz_count[2]) {
     z3_config_t *config1 = game1->config;
     int move_count = 0;
     while (!game1->leaf(game1, game_state(game1))) {
-        //game_publish_state(game1);
+        game_publish_state(game1);
         //game1->publish(game1, game_state(game1));
         z3_advance_ai2(game1, game2);
         //printf("eval = %d; heuristic = %d\n", -1 * game_player(game) * game->data->eval, game->heuristic(game, game_state(game)));
@@ -798,7 +829,7 @@ static void z3_play_ai2_main(z3_t *game1, z3_t *game2, int zzz_count[2]) {
         ++move_count;
     }
     //game_moves_print(game1);
-    //game_publish_state(game1);
+    game_publish_state(game1);
     //game1->publish(game1, game_state(game1));
     unsigned game1_nbytes = (unsigned)(negamax_nbytes(game_negamax(game1)));
     unsigned game2_nbytes = (unsigned)(negamax_nbytes(game_negamax(game2)));
@@ -830,6 +861,108 @@ void z3_play_ai2(z3_t *game1, z3_t *game2) {
     while (game_prompt_rematch())
         z3_play_ai2_main(game1, game2, zzz_count);
 }
+
+z3_t *z3_iOS_SetupGame_Human(int M, int N, int K, int initBlock, int staleMode) {
+    z3_stale_t stale = staleMode == 1 ? Z3_WIN : staleMode == 2 ? Z3_LOSS : Z3_DRAW;
+    return z3_init_w(M, N, K, initBlock - 1, stale, 
+                     INIT_TILE_P1, INIT_TILE_P2, INIT_TILE_NA, INIT_TILE_CLOG,
+                     INIT_DEPTH_AI, false, false);
+}
+
+//z3_t *z3_iOS_SetupGame_AI(int M, int N, int K, int initBlock, int stateMode, int playerAI, int difficulty);
+
+int *z3_iOS_Move_Human(z3_t *humanGame, int tileNumber, int playerNumber) {
+    z3_config_t *config = humanGame->config;
+    --tileNumber;
+    const char playerTile = playerNumber == 1 ? config->tile_p1 : config->tile_p2;
+
+    int blockIndex = tileNumber / (config->M * config->N) + (tileNumber % (config->N * config->N)) / config->N;
+    int subBlockIndex = ((tileNumber / (config->N * config->N)) % config->N) * config->N + tileNumber % config->N;
+    int tileIndex = blockIndex * config->N * config->M + subBlockIndex;
+    uint8_t checkBlockIndex = z3_node_previous(game_state(humanGame));
+    if (blockIndex != checkBlockIndex)
+        return NULL;
+    if (subBlockIndex >= config->M * config->N)
+        return NULL;
+
+    z3_node_t currentState = z3_node_dup(humanGame, game_state(humanGame));
+    z3_node_t newState = z3_node_dup(humanGame, game_state(humanGame));
+
+    char *newBlocks = z3_node_blocks(config, newState);
+    if (newBlocks[tileIndex] != config->tile_na)
+        return NULL;
+    newBlocks[tileIndex] = playerTile;
+    *(uint8_t *)newState = subBlockIndex;
+
+    size_t noptions;
+    node_t *options = humanGame->spawn(humanGame, currentState, &noptions);
+    size_t optionIndex = config->M * config->N;
+    for (size_t i = 0; i < noptions; ++i) {
+        if (!memcmp(newBlocks, z3_node_blocks(config, options[i]), config->M * config->M * config->N * config->N)) {
+            optionIndex = i;
+            break;
+        }
+    }
+
+    if (optionIndex == config->M * config->N)
+        return NULL;
+
+    bool legal = game_move(humanGame, options[optionIndex]);
+    if (!legal)
+        return NULL;
+    free(newState);
+    newState = z3_node_dup(humanGame, options[optionIndex]);
+
+    for (size_t i = 0; i < noptions; ++i)
+        free(options[i]);
+    free(options);
+
+    int *gameInfo = malloc(4);
+    gameInfo[0] = 0;
+    if (humanGame->leaf(humanGame, newState)) {
+        player_t winner = humanGame->winner(humanGame, newState);
+        switch (winner) {
+            case P_OAKLEY:
+                gameInfo[0] = 1;
+                break;
+            case P_TAYLOR:
+                gameInfo[0] = 2;
+                break;
+            case P_DAKOTA:
+                gameInfo[0] = 3;
+        }
+    }
+
+    char *currentMega = z3_node_mega(currentState);
+    char *newMega = z3_node_mega(newState);
+    if (!memcmp(currentMega, newMega, config->M * config->N))
+        gameInfo[1] = 0;
+    else
+        gameInfo[1] = 1 + blockIndex;
+
+    free(currentState);
+    free(newState);
+
+    gameInfo[2] = gameInfo[1] ? playerNumber : 0;
+    gameInfo[3] = gameInfo[0] ? 0 : 1 + subBlockIndex;
+    return gameInfo;
+}
+
+//int *z3_iOS_Move_AI(int tileNumber, int playerNumber);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

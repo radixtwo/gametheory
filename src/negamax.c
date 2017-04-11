@@ -1,7 +1,7 @@
 
 #include "negamax.h"
-#include "hashmap.h"
 #include "game.h"
+#include "hashmap.h"
 #include "nkrand.h"
 #include <stdlib.h>
 #include <stdio.h>

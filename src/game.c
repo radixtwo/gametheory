@@ -109,6 +109,7 @@ static void moves_trash(void *node_ref) {
 
 // prompts human player for choice & returns selected move
 static node_t human_move(game_t *game) {
+    data_t *data = game->data;
     size_t noffspring;
     node_t *offspring = game->spawn(game, game_state(game), &noffspring);
     printf("enter choice (");
@@ -121,6 +122,17 @@ static node_t human_move(game_t *game) {
     int index;
     char choice;
     scanf(" %c", &choice);
+    if (choice == '<') {
+        size_t nmoves = vector_size(data->moves);
+        if (data->player1_ai != data->player2_ai && nmoves > 2) {
+            game_rewind(game, 2);
+            return NULL;
+        } else if (nmoves > 1) {
+            game_rewind(game, 1);
+            return NULL;
+        } else
+            printf("cannot rewind!\n");
+    }
     index = choice - (int)'a';
     while (index < 0 || index >= (int)noffspring) {
         printf("invalid choice!\nenter choice:\n");
@@ -345,7 +357,7 @@ void game_publish_state(game_t *game) {
 //-------------//
 
 
-void game_move(game_t *game, node_t node) {
+bool game_move(game_t *game, node_t node) {
     size_t noptions;
     node_t *options = game->spawn(game, game_state(game), &noptions);
     bool legal = false;
@@ -360,10 +372,12 @@ void game_move(game_t *game, node_t node) {
         node_t copy = node_dup(node, game->data->width);
         game->data->state = copy;
         vector_append(game->data->moves, &copy);
+        return true;
     }
+    return false;
 }
 
-void game_advance(game_t *game) {
+bool game_advance(game_t *game) {
     data_t *data = game->data;
     player_t player = game_player(game);
     node_t move = NULL;
@@ -371,8 +385,12 @@ void game_advance(game_t *game) {
         move = negamax_move(data->negamax, data->state, player, data->depth, &data->eval);
     else
         move = human_move(game);
-    game_move(game, move);
-    free(move);
+    if (move) {
+        game_move(game, move);
+        free(move);
+        return true;
+    }
+    return false;
 }
 
 void game_advance_ai2(game_t *game1, game_t *game2) {
@@ -430,27 +448,10 @@ void game_play(game_t *game) {
     do {
         int move_count = 0;
         while (!game->leaf(game, game_state(game))) {
-            //publish_state(game);
-            if (player_human(game)) {
-                size_t nmoves = vector_size(game->data->moves);
-                char reverse;
-                if (data->player1_ai != data->player2_ai && nmoves > 2) {
-                    printf("reverse last move (y/n)?\n");
-                    scanf(" %c", &reverse);
-                    if (reverse == 'y') {
-                        game_rewind(game, 2);
-                        continue;
-                    } 
-                } else if (nmoves > 1) {
-                    printf("reverse last move (y/n)?\n");
-                    scanf(" %c", &reverse);
-                    if (reverse == 'y') {
-                        game_rewind(game, 1);
-                        continue;
-                    } 
-                }
-            }
-            game_advance(game);
+            publish_state(game);
+            bool moved = game_advance(game);
+            if (!moved)
+                continue;
             //printf("eval = %d; heuristic = %d\n", -1 * game_player(game) * game->data->eval, game->heuristic(game, game_state(game)));
             if (move_count % 2) {
                 unsigned game_nbytes = negamax_nbytes(data->negamax);
@@ -461,7 +462,7 @@ void game_play(game_t *game) {
             }
             ++move_count;
         }
-        //publish_state(game);
+        publish_state(game);
         player_t winner = game->winner(game, game_state(game));
         game_score_add(game, winner);
         printf("\n");

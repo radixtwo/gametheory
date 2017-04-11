@@ -142,10 +142,10 @@ void game_publish_state(game_t *game);
 //-------------//
 
 // designate & verify played move
-void game_move(game_t *game, node_t move);
+bool game_move(game_t *game, node_t move);
 
 // advance game by one move (ai or human)
-void game_advance(game_t *game);
+bool game_advance(game_t *game);
 
 // advance game by one move (ai vs. ai)
 void game_advance_ai2(game_t *game1, game_t *game2);
