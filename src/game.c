@@ -166,7 +166,7 @@ game_t *game_init(node_t const root, size_t const width, int const heuristic_max
                   heuristic_t const heuristic, publish_t const publish,
                   clone_t const clone, stratify_t const stratify) {
     data_t data_raw = {.root = node_dup(root, width), .width = width, .heuristic_max = heuristic_max,
-                       .depth = depth, .player1_ai = player1_ai, .player2_ai = player2_ai};
+                       .negamax = NULL, .depth = depth, .player1_ai = player1_ai, .player2_ai = player2_ai};
     data_t *data = malloc(sizeof(data_t));
     memcpy(data, &data_raw, sizeof(data_t));
 
@@ -190,10 +190,8 @@ game_t *game_init(node_t const root, size_t const width, int const heuristic_max
     game->data = data;
     game->config = NULL;
 
-    if (player1_ai || player2_ai) {
-        data->depth = !depth ? DEFAULT_DEPTH : depth;
+    if (player1_ai || player2_ai)
         data->negamax = negamax_init(game);
-    }
 
     return game;
 }

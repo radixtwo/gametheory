@@ -876,15 +876,25 @@ int *z3_iOS_Move_Human(z3_t *humanGame, int tileNumber, int playerNumber) {
     --tileNumber;
     const char playerTile = playerNumber == 1 ? config->tile_p1 : config->tile_p2;
 
-    int blockIndex = tileNumber / (config->M * config->N) + (tileNumber % (config->N * config->N)) / config->N;
-    int subBlockIndex = ((tileNumber / (config->N * config->N)) % config->N) * config->N + tileNumber % config->N;
+    int blockRowIndex = (tileNumber / (config->N * config->N)) / config->M;
+    int blockColumnIndex = (tileNumber % (config->N * config->N)) / config->N;
+    int subBlockRowIndex = (tileNumber / (config->N * config->N)) % config->M;
+    int subBlockColumnIndex = tileNumber % config->N;
+    int blockIndex = blockRowIndex * config->N + blockColumnIndex;
+    int subBlockIndex = subBlockRowIndex * config->N + subBlockColumnIndex;
     int tileIndex = blockIndex * config->N * config->M + subBlockIndex;
+    printf("blockIndex: %d\n", blockIndex);
+    printf("subBlockIndex: %d\n", subBlockIndex);
+    printf("tileIndex: %d\n", tileIndex);
+
     uint8_t checkBlockIndex = z3_node_previous(game_state(humanGame));
+    printf("checkBlockIndex: %d\n", checkBlockIndex);
     if (blockIndex != checkBlockIndex)
         return NULL;
     if (subBlockIndex >= config->M * config->N)
         return NULL;
 
+    printf("Reached duplicatings...\n");
     z3_node_t currentState = z3_node_dup(humanGame, game_state(humanGame));
     z3_node_t newState = z3_node_dup(humanGame, game_state(humanGame));
 

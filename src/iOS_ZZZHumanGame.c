@@ -16,5 +16,11 @@ int *HumanMove(int tileNumber, int playerNumber) {
     return z3_iOS_Move_Human(humanGame, tileNumber, playerNumber);
 }
 
+void ReverseHumanMove(int nRewind) {
+    game_rewind(humanGame, nRewind);
+}
 
+void PrintHumanGame() {
+    humanGame->publish(humanGame, game_state(humanGame));
+}
 

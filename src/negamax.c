@@ -124,6 +124,8 @@ negamax_t *negamax_init(game_t const *game) {
 }
 
 void negamax_free(negamax_t *negamax) {
+    if (!negamax)
+        return;
     hashmap_free(negamax->ttable);
     free(negamax);
 }
