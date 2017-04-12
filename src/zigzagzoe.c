@@ -871,7 +871,7 @@ z3_t *z3_iOS_SetupGame_Human(int M, int N, int K, int initBlock, int staleMode) 
 
 //z3_t *z3_iOS_SetupGame_AI(int M, int N, int K, int initBlock, int stateMode, int playerAI, int difficulty);
 
-int *z3_iOS_Move_Human(z3_t *humanGame, int tileNumber, int playerNumber) {
+int *z3_iOS_Move_Human(z3_t *humanGame, int tileNumber, int playerNumber, size_t *nResults) {
     z3_config_t *config = humanGame->config;
     --tileNumber;
     const char playerTile = playerNumber == 1 ? config->tile_p1 : config->tile_p2;
@@ -883,18 +883,18 @@ int *z3_iOS_Move_Human(z3_t *humanGame, int tileNumber, int playerNumber) {
     int blockIndex = blockRowIndex * config->N + blockColumnIndex;
     int subBlockIndex = subBlockRowIndex * config->N + subBlockColumnIndex;
     int tileIndex = blockIndex * config->N * config->M + subBlockIndex;
-    printf("blockIndex: %d\n", blockIndex);
-    printf("subBlockIndex: %d\n", subBlockIndex);
-    printf("tileIndex: %d\n", tileIndex);
+    //printf("blockIndex: %d\n", blockIndex);
+    //printf("subBlockIndex: %d\n", subBlockIndex);
+    //printf("tileIndex: %d\n", tileIndex);
 
     uint8_t checkBlockIndex = z3_node_previous(game_state(humanGame));
-    printf("checkBlockIndex: %d\n", checkBlockIndex);
+    //printf("checkBlockIndex: %d\n", checkBlockIndex);
     if (blockIndex != checkBlockIndex)
         return NULL;
     if (subBlockIndex >= config->M * config->N)
         return NULL;
 
-    printf("Reached duplicatings...\n");
+    //printf("Reached duplicatings...\n");
     z3_node_t currentState = z3_node_dup(humanGame, game_state(humanGame));
     z3_node_t newState = z3_node_dup(humanGame, game_state(humanGame));
 
@@ -927,7 +927,8 @@ int *z3_iOS_Move_Human(z3_t *humanGame, int tileNumber, int playerNumber) {
         free(options[i]);
     free(options);
 
-    int *gameInfo = malloc(4);
+    *nResults = 4;
+    int *gameInfo = malloc(*nResults);
     gameInfo[0] = 0;
     if (humanGame->leaf(humanGame, newState)) {
         player_t winner = humanGame->winner(humanGame, newState);

@@ -12,8 +12,8 @@ void EndHumanGame() {
     z3_free(humanGame);
 }
 
-int *HumanMove(int tileNumber, int playerNumber) {
-    return z3_iOS_Move_Human(humanGame, tileNumber, playerNumber);
+int *HumanMove(int tileNumber, int playerNumber, size_t *nResults) {
+    return z3_iOS_Move_Human(humanGame, tileNumber, playerNumber, nResults);
 }
 
 void ReverseHumanMove(int nRewind) {

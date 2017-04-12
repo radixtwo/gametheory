@@ -5,7 +5,8 @@
 int main() {
     SetupHumanGame(3, 3, 3, 1, 1);
     PrintHumanGame();
-    int *result1 = HumanMove(10, 1);
+    size_t nResults;
+    int *result1 = HumanMove(10, 1, &nResults);
     PrintHumanGame();
     //int *result2 = HumanMove(3, 1);
     //int *result2 = HumanMove(27, 1);
