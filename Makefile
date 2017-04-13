@@ -25,10 +25,10 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.c
 $(OEUVRE): %:$(OBJECT)
 	$(LINK.o) $(filter %.o,$^) $(LDLIBS) -o $@
 	chmod 755 $@
-	ln -sf $(OEUVRE) play
+	ln -sf $(OEUVRE)
 
 clean::
-	rm -f $(OEUVRE) $(OBJECT) play
+	rm -f $(OEUVRE) $(OBJECT)
 
 .PHONY: clean all
 
