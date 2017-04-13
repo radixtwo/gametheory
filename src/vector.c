@@ -153,7 +153,7 @@ int vector_search(vector_t const *vector, void const *key, compare_t compare, si
     size_t vector_size = vector->size;
     void *match = sorted ? bsearch(key, idx2vec(vector, start), vector_size, vector->width, compare)
                          :   lfind(key, idx2vec(vector, start), &vector_size, vector->width, compare);
-    return match ? PTR2IDX(vector->data, match, vector->width) : vector_size;
+    return (int)(match ? PTR2IDX(vector->data, match, vector->width) : vector_size);
 }
 
 void vector_sort(vector_t *vector, compare_t compare) {
