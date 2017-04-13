@@ -9,6 +9,7 @@
 //-------------------//
 
 
+//#include "negamax.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -35,11 +36,11 @@ typedef enum _player_t {
 } player_t;
 
 // (private) data struct typedef definition
-struct _data_t;
+//struct _data_t;
 typedef struct _data_t data_t;
 
 // generic two-player zero-sum game struct typedef (defined below)
-struct _game_t;
+//struct _game_t;
 typedef struct _game_t game_t;
 
 // client-specified game state function reference typedefs

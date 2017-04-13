@@ -17,7 +17,7 @@
 
 typedef void (*printkv_t)(void const *, void const *);
 
-struct _hashmap_t;
+//struct _hashmap_t;
 typedef struct _hashmap_t hashmap_t;
 
 // constructor & destructor

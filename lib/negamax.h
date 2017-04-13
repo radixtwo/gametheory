@@ -8,7 +8,7 @@
 #include <stdbool.h>
 
 // private data struct typedef
-struct _negamax_t;
+//struct _negamax_t;
 typedef struct _negamax_t negamax_t;
 
 negamax_t *negamax_init(game_t const *game);

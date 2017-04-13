@@ -17,7 +17,7 @@
 
 typedef void (*printv_t)(void const *);
 
-struct _vector_t;
+//struct _vector_t;
 typedef struct _vector_t vector_t;
 
 // constructor & destructor
