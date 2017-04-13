@@ -6,7 +6,7 @@
 
 void SetupHumanGame(int m, int n, int k, int initBoard, int staleMode);
 void EndHumanGame();
-int *HumanMove(int tileNumber, int playerNumber, size_t *nResults);
+int *HumanMove(int tileNumber, int playerNumber);
 void ReverseHumanMove();
 void PrintHumanGame();
 

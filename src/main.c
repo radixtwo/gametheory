@@ -12,9 +12,8 @@ int main() {
         int tileNumber;
         printf("enter tile number:\n");
         scanf(" %d", &tileNumber);
-        size_t nResults;
         int *results = NULL;
-        while (!(results = HumanMove(tileNumber, playerNumber, &nResults))) {
+        while (!(results = HumanMove(tileNumber, playerNumber))) {
             printf("enter tile number:\n");
             scanf(" %d", &tileNumber);
         }
