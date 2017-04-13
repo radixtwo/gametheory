@@ -432,7 +432,7 @@ static void z3_node_print(z3_config_t const *config, z3_node_t const node) {
                     printf("|");
                 printf("---");
             }
-            printf(ANSI.reset);
+            printf("%s", ANSI.reset);
             printf("\n");
         }
         for (uint8_t col = 0; col < config->N * config->N; ++col) {

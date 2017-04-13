@@ -29,7 +29,7 @@
 //------------------------//
 
 
-typedef struct _data_t {
+struct _data_t {
     node_t root;
     size_t width;
     int heuristic_max;
@@ -45,7 +45,7 @@ typedef struct _data_t {
 
     vector_t *moves;
     unsigned score[2];
-} data_t;
+};
 
 
 //--------------------//
@@ -77,7 +77,7 @@ static inline bool player_human(game_t *game) {
 
 // clears screen & prints game state to standard output
 static inline void publish_state(game_t *game) {
-    printf(ANSI.erase);
+    printf("%s", ANSI.erase);
     game->publish(game, game_state(game));
     printf("\n");
 }
@@ -452,8 +452,8 @@ void game_play(game_t *game) {
                 continue;
             //printf("eval = %d; heuristic = %d\n", -1 * game_player(game) * game->data->eval, game->heuristic(game, game_state(game)));
             if (move_count % 2) {
-                unsigned game_nbytes = negamax_nbytes(data->negamax);
-                unsigned game_size = negamax_ttable_size(data->negamax);
+                unsigned game_nbytes = (unsigned)negamax_nbytes(data->negamax);
+                unsigned game_size = (unsigned)negamax_ttable_size(data->negamax);
                 printf("memory: %f MiB\n", (double)game_nbytes/1024/1024);
                 printf("ttable:  %u\n", game_size);
                 printf("\n");
