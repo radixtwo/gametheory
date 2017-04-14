@@ -1,6 +1,6 @@
 
 #ifndef ANSICOLOR_H
-#define ANSICOlOR_H
+#define ANSICOLOR_H
 
 #define ANSI_CLEAR()        printf("\033[H\033[J")
 #define ANSI_CURSOR(x,y)    printf("\033[%d;%dH",(x),(y))

@@ -9,7 +9,7 @@
 
 // private data struct typedef
 //struct _negamax_t;
-typedef struct _negamax_t negamax_t;
+//	typedef struct _negamax_t negamax_t;
 
 negamax_t *negamax_init(game_t const *game);
 void negamax_free(negamax_t *negamax);
