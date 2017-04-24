@@ -25,7 +25,7 @@ typedef enum {
 
 typedef struct {
     bound_t bound;
-    uint8_t depth;
+    unsigned depth;
     int value;
 } memo_t;
 
@@ -53,7 +53,7 @@ static memo_t *recall(negamax_t const *negamax, node_t node) {
     return memo;
 }
 
-static void memoize(negamax_t *negamax, node_t node, bound_t bound, uint8_t depth, int value) {
+static void memoize(negamax_t *negamax, node_t node, bound_t bound, unsigned depth, int value) {
     memo_t memo = {bound, depth, value};
     hashmap_set(negamax->ttable, node, &memo);
 }
@@ -67,7 +67,7 @@ static void node_free_except(node_t except, node_t *options, size_t noptions) {
 }
 
 // evaluates a node
-static int negamax_search(negamax_t *negamax, node_t node, player_t player, uint8_t depth, int alpha, int beta) {
+static int negamax_search(negamax_t *negamax, node_t node, player_t player, unsigned depth, int alpha, int beta) {
     int alpha0 = alpha;
     game_t const *game = negamax->game;
     memo_t *memo = recall(negamax, node);
@@ -138,11 +138,11 @@ size_t negamax_nbytes(negamax_t const *negamax) {
     return hashmap_nbytes(negamax->ttable);
 }
 
-int negamax_eval(negamax_t *negamax, node_t node, player_t player, uint8_t depth) {
+int negamax_eval(negamax_t *negamax, node_t node, player_t player, unsigned depth) {
     return negamax_search(negamax, node, player, depth, -1 * game_heuristic_max(negamax->game), game_heuristic_max(negamax->game));
 }
 
-node_t negamax_move(negamax_t *negamax, node_t node, player_t player, uint8_t depth, int * const eval) {
+node_t negamax_move(negamax_t *negamax, node_t node, player_t player, unsigned depth, int * const eval) {
     game_t const *game = negamax->game;
     int alpha = -1 * game_heuristic_max(game), beta = game_heuristic_max(game), value_best = alpha;
     size_t noptions, nbest = 1;

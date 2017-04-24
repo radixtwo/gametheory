@@ -9,8 +9,8 @@ OEUVRE	:=	$(patsubst $(SRCDIR)/%.c,$(BINDIR)/%,$(shell grep -rnwl $(SRCDIR) -e \
 			"^\s*\(int\|void\)\s\+main\s*(\s*\(int\s\+argc\s*\(,\s*char\s*\*\s*\(argv\[\]\|\*\s*argv\)\)\?\)\?\s*)\s*{\?\s*$$"))
     
 CC		=	gcc
-#CFLAGS	=	-g -std=gnu11 -Wall -Wextra $$etcetera
-CFLAGS	=	-g -std=gnu11 -O3 -Wall -Wextra $$etcetera
+CFLAGS	=	-g -std=gnu11 -Og -Wall -Wextra $$etcetera
+#CFLAGS	=	-g -std=gnu11 -O3 -Wall -Wextra $$etcetera
 #CFLAGS	=	-g -std=gnu11 -Ofast -Wall -Wextra $$etcetera
 LDFLAGS	=	
 LDLIBS	=	
@@ -25,10 +25,10 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.c
 $(OEUVRE): %:$(OBJECT)
 	$(LINK.o) $(filter %.o,$^) $(LDLIBS) -o $@
 	chmod 755 $@
-	ln -sf $(OEUVRE)
+	ln -sf $(OEUVRE) run
 
 clean::
-	rm -f $(OEUVRE) $(OBJECT)
+	rm -f $(OEUVRE) $(OBJECT) run
 
 .PHONY: clean all
 

@@ -57,9 +57,9 @@ _____________________
 #define INIT_STALE      Z3_WIN
 
 typedef struct _z3_config_t {
-    uint8_t M;
-    uint8_t N;
-    uint8_t K;
+    unsigned M;
+    unsigned N;
+    unsigned K;
     z3_stale_t mate;
     char tile_p1;
     char tile_p2;
@@ -90,12 +90,12 @@ static inline z3_node_t z3_node_dup(z3_t const *game, z3_node_t node) {
 }
 
 // returns number of slots on board
-static inline uint8_t z3_nslots(z3_config_t const *config) {
+static inline unsigned z3_nslots(z3_config_t const *config) {
     return config->M * config->N * config->M * config->N;
 }
 
 // returns 'z3_node_t' length in terms of M and N
-static inline size_t  z3_node_width_rc(uint8_t r, uint8_t c) {
+static inline size_t  z3_node_width_rc(unsigned r, unsigned c) {
     return (size_t)(1 + (r * c) + (r * c * r * c));
 }
 
@@ -105,8 +105,8 @@ static inline size_t  z3_node_width(z3_config_t const *config) {
 }
 
 // extracts 'previous' from 'z3_node_t' (index of sub-board for current player)
-static inline uint8_t z3_node_previous(z3_node_t const node) {
-    return *(uint8_t *)node;
+static inline unsigned z3_node_previous(z3_node_t const node) {
+    return *(unsigned *)node;
 }
 
 // extracts mega-board from 'z3_node_t' (MxN board recording won sub-boards)
@@ -120,27 +120,29 @@ static inline char  *z3_node_blocks(z3_config_t const *config, z3_node_t node) {
 }
 
 // extracts sub-board for current player from 'z3_node_t'
-static inline char  *z3_node_block(z3_config_t const *config, z3_node_t const node, uint8_t previous) {
+static inline char  *z3_node_block(z3_config_t const *config, z3_node_t const node, unsigned previous) {
     char *blocks = z3_node_blocks(config, node);
-    uint8_t row = previous / config->N;
-    uint8_t col = previous % config->N;
+    unsigned row = previous / config->N;
+    unsigned col = previous % config->N;
     return &blocks[MEGIDX(row, col, 0, 0, config->M, config->N)];
 }
 
 // returns number of tiles on board
-static inline uint8_t z3_node_ntiles(z3_config_t const *config, z3_node_t const node) {
+static inline unsigned z3_node_ntiles(z3_config_t const *config, z3_node_t const node) {
     char *blocks = z3_node_blocks(config, node);
-    uint8_t ntiles = 0;
+    unsigned ntiles = 0;
     for (size_t slot = 0; slot < z3_nslots(config); ++slot)
         if (blocks[slot] != config->tile_na)
             ++ntiles;
+    printf("ntiles = %u\n", (unsigned)ntiles);
+    printf("nslots = %u\n", (unsigned)z3_nslots(config));
     return ntiles;
 }
 
 // returns number of empty slots on board
-static inline uint8_t z3_node_nempty(z3_config_t const *config, z3_node_t const node) {
+static inline unsigned z3_node_nempty(z3_config_t const *config, z3_node_t const node) {
     char *blocks = z3_node_blocks(config, node);
-    uint8_t nempty = 0;
+    unsigned nempty = 0;
     for (size_t slot = 0; slot < z3_nslots(config); ++slot)
         if (blocks[slot] == config->tile_na)
             ++nempty;
@@ -154,19 +156,20 @@ static inline bool  z3_node_player1(z3_config_t const *config, z3_node_t const n
 
 // returns 'true' if the sub-board for the current player has no options
 static inline bool  z3_node_stale(z3_config_t const *config, z3_node_t const node) {
-    uint8_t previous = z3_node_previous(node);
+    printf("reached z3_node_stale\n");
+    unsigned previous = z3_node_previous(node);
     char *block = z3_node_block(config, node, previous);
-    for (uint8_t slot = 0; slot < config->M * config->N; ++slot)
+    for (unsigned slot = 0; slot < config->M * config->N; ++slot)
         if (block[slot] == config->tile_na)
             return false;
     return true;
 }
 
 // returns root 'z3_node_t' given initial sub-board for player 1
-static inline z3_node_t z3_node_root(z3_config_t const *config, uint8_t previous_init) {
+static inline z3_node_t z3_node_root(z3_config_t const *config, unsigned previous_init) {
     size_t width = z3_node_width(config);
     z3_node_t root = malloc(width * sizeof(char));
-    *(uint8_t *)root = previous_init;
+    *(unsigned *)root = previous_init;
     for (size_t slot = 1; slot < width; ++slot)
         root[slot] = config->tile_na;
     return root;
@@ -193,11 +196,11 @@ static inline player_t  z3_player_tile(z3_config_t const *config, char tile) {
 /*
 ///  20170331 deprecated  ///
 // returns number of sub-boards won by given player on given node
-static uint8_t  z3_blocks_owned(z3_config_t const *config, z3_node_t node, player_t player) {
+static unsigned  z3_blocks_owned(z3_config_t const *config, z3_node_t node, player_t player) {
     char *mega = z3_node_mega(node);
     char tile = z3_tile_player(config, player);
-    uint8_t count = 0;
-    for (uint8_t t = 0; t < config->M * config->N; ++t)
+    unsigned count = 0;
+    for (unsigned t = 0; t < config->M * config->N; ++t)
         if (mega[t] == tile)
             ++count;
     return count;
@@ -283,6 +286,7 @@ static char z3_block_won(z3_config_t const *config, char const *block) {
 // returns 1 or -1 if player 1 or 2, respectively, created a zigzagzoe for given node
 // returns 0, otherwise
 static int8_t z3_node_zzz(z3_config_t const *config, z3_node_t const node) {
+    printf("reached z3_node_zzz\n");
     char *mega = z3_node_mega(node);
     char winner = z3_block_won(config, mega);
     if (winner == config->tile_p1)
@@ -293,11 +297,11 @@ static int8_t z3_node_zzz(z3_config_t const *config, z3_node_t const node) {
 }
 
 // returns potency for given player in a block (a sub-board or the mega-board)
-static uint8_t  z3_block_potency_player(z3_config_t const *config, char const *block, player_t player) {
+static unsigned  z3_block_potency_player(z3_config_t const *config, char const *block, player_t player) {
     char tile_p = z3_tile_player(config, player);
     char tile_na = config->tile_na;
     bool potential = true;
-    uint8_t potency = 0;
+    unsigned potency = 0;
     int8_t row, col, n;
     for (row = 0; row < config->M; ++row) {
         for (col = 0; col < config->N - config->K + 1; ++col) {
@@ -359,38 +363,38 @@ static uint8_t  z3_block_potency_player(z3_config_t const *config, char const *b
 }
 
 // returns potency for given player on mega-board for given node
-static uint8_t  z3_mega_potency_player(z3_config_t const *config, z3_node_t const node, player_t player) {
+static unsigned  z3_mega_potency_player(z3_config_t const *config, z3_node_t const node, player_t player) {
     size_t nslots_block = config->M * config->N;
     char *edit = malloc(nslots_block);
     memcpy(edit, z3_node_mega(node), nslots_block);
     char *blocks = z3_node_blocks(config, node);
-    for (uint8_t r = 0; r < config->M; ++r) {
-        for (uint8_t c = 0; c < config->N; ++c) {
+    for (unsigned r = 0; r < config->M; ++r) {
+        for (unsigned c = 0; c < config->N; ++c) {
             if (edit[BLKIDX(r, c, config->N)] != config->tile_na)
                 continue;
-            uint8_t block_potency = z3_block_potency_player(config, &blocks[MEGIDX(r, c, 0, 0, config->M, config->N)], player);
+            unsigned block_potency = z3_block_potency_player(config, &blocks[MEGIDX(r, c, 0, 0, config->M, config->N)], player);
             if (!block_potency)
                 edit[BLKIDX(r, c, config->N)] = config->tile_clog;
         }
     }
-    uint8_t potency = z3_block_potency_player(config, edit, player);
+    unsigned potency = z3_block_potency_player(config, edit, player);
     free(edit);
     return potency;
 }
 
 // returns maximum possible potency for either player in any block
-static uint8_t  z3_node_potency_max(z3_config_t const *config) {
+static unsigned  z3_node_potency_max(z3_config_t const *config) {
     z3_node_t root = z3_node_root(config, 0);
-    uint8_t potency = z3_mega_potency_player(config, root, P_OAKLEY);
+    unsigned potency = z3_mega_potency_player(config, root, P_OAKLEY);
     free(root);
     return potency;
 }
 
 // returns the sum of the potencies of the sub-boards for the given player
-static uint8_t  z3_subsum_potency_player(z3_config_t const *config, z3_node_t const node, player_t player) {
+static unsigned  z3_subsum_potency_player(z3_config_t const *config, z3_node_t const node, player_t player) {
     size_t nblocks = config->M * config->N;
-    uint8_t potency_max = z3_node_potency_max(config);
-    uint8_t potency = 0;
+    unsigned potency_max = z3_node_potency_max(config);
+    unsigned potency = 0;
     for (size_t b = 0; b < nblocks; ++b) {
         char *block = z3_node_block(config, node, b);
         char tile_player = z3_block_won(config, block);
@@ -406,8 +410,8 @@ static uint8_t  z3_subsum_potency_player(z3_config_t const *config, z3_node_t co
 // prints the given node to standard output
 static void z3_node_print(z3_config_t const *config, z3_node_t const node) {
     char *mega = z3_node_mega(node);
-    for (uint8_t row = 0; row < config->M; ++row) {
-        for (uint8_t col = 0; col < config->N; ++col) {
+    for (unsigned row = 0; row < config->M; ++row) {
+        for (unsigned col = 0; col < config->N; ++col) {
             char tile = mega[BLKIDX(row, col, config->N)];
             if (tile == config->tile_p1)
                 printf("%s%s %c %s", ANSI.bold, ANSI.red, tile, ANSI.reset);
@@ -419,15 +423,15 @@ static void z3_node_print(z3_config_t const *config, z3_node_t const node) {
         printf("\n");
     }
     printf("\n");
-    uint8_t previous = z3_node_previous(node);
+    unsigned previous = z3_node_previous(node);
     char *blocks = z3_node_blocks(config, node);
-    uint8_t opt_count = 0;
-    for (uint8_t row = 0; row < config->M * config->M; ++row) {
-        uint8_t R = row / config->M;
-        uint8_t r = row % config->M;
+    unsigned opt_count = 0;
+    for (unsigned row = 0; row < config->M * config->M; ++row) {
+        unsigned R = row / config->M;
+        unsigned r = row % config->M;
         if (R && !r) {
             printf("%s", ANSI.green);
-            for (uint8_t brk = 0; brk < config->N * config->N; ++brk) {
+            for (unsigned brk = 0; brk < config->N * config->N; ++brk) {
                 if (brk / config->N  && !(brk % config->N))
                     printf("|");
                 printf("---");
@@ -435,9 +439,9 @@ static void z3_node_print(z3_config_t const *config, z3_node_t const node) {
             printf("%s", ANSI.reset);
             printf("\n");
         }
-        for (uint8_t col = 0; col < config->N * config->N; ++col) {
-            uint8_t C = col / config->N;
-            uint8_t c = col % config->N;
+        for (unsigned col = 0; col < config->N * config->N; ++col) {
+            unsigned C = col / config->N;
+            unsigned c = col % config->N;
             if (C && !c)
                 printf("%s|%s", ANSI.green, ANSI.reset);
             char tile = blocks[MEGIDX(R, C, r, c, config->M, config->N)];
@@ -463,6 +467,7 @@ static void z3_node_print(z3_config_t const *config, z3_node_t const node) {
 
 // returns 'true' if given node has no children (or options)
 static bool z3_leaf(game_t const *game, node_t const node) {
+    printf("reached z3_leaf\n");
     return z3_node_stale(game->config, node) ||
              z3_node_zzz(game->config, node);
 }
@@ -470,27 +475,31 @@ static bool z3_leaf(game_t const *game, node_t const node) {
 // returns array of children of passed node
 // stores length of array in '*noffspring'
 static node_t *z3_spawn(game_t const *game, node_t const node_raw, size_t * const noffspring) {
+    printf("z3_spawn reached\n");
     z3_config_t const *config = game->config;
     z3_node_t const node = node_raw;
-    uint8_t previous = z3_node_previous(node);
+    unsigned previous = z3_node_previous(node);
     char *block = z3_node_block(config, node, previous);
+    game->publish(game, node_raw);
     char tile = z3_node_player1(config, node) ? config->tile_p1 : config->tile_p2;
     z3_node_t child = NULL;
     char *block_child = NULL;
     z3_node_t offspring_buf[config->M * config->N];
     *noffspring = 0;
-    for (uint8_t r = 0; r < config->M; ++r) {
-        for (uint8_t c = 0; c < config->N; ++c) {
+    printf("z3_spawn: enumerating children\n");
+    for (unsigned r = 0; r < config->M; ++r) {
+        for (unsigned c = 0; c < config->N; ++c) {
             if (block[BLKIDX(r, c, config->N)] == config->tile_na) {
                 child = malloc(game_width(game));
                 memcpy(child, node, game_width(game));
-                *(uint8_t *)child = r * config->N + c;
+                *(unsigned *)child = r * config->N + c;
                 block_child = z3_node_block(config, child, previous);
                 block_child[BLKIDX(r, c, config->N)] = tile;
                 offspring_buf[(*noffspring)++] = child;
             }
         }
     }
+    printf("z3_spawn: updating children megaboards\n");
     node_t *offspring = malloc(*noffspring * sizeof(node_t));
     memcpy(offspring, offspring_buf, *noffspring * sizeof(node_t));
     char *mega = z3_node_mega(node);
@@ -527,18 +536,18 @@ static player_t z3_winner(game_t const *game, node_t const node) {
 
 // returns maximum heuristic value of 'z3_heuristic'
 static int  z3_heuristic_max(z3_config_t const *config) {
-    uint8_t potency_max = z3_node_potency_max(config);
+    unsigned potency_max = z3_node_potency_max(config);
     //return (1 + config->M * config->N) * potency_max + (1 + z3_nslots(config));
     return potency_max * config->M * config->N * potency_max + (1 + z3_nslots(config));
 }
 
 static int  z3_heuristic_max2(z3_config_t const *config) {
-    uint8_t potency_max = z3_node_potency_max(config);
+    unsigned potency_max = z3_node_potency_max(config);
     return potency_max + config->M * config->N * potency_max + (1 + z3_nslots(config));
 }
 
 static int  z3_heuristic_max3(z3_config_t const *config) {
-    uint8_t potency_max = z3_node_potency_max(config);
+    unsigned potency_max = z3_node_potency_max(config);
     return config->M * config->N * potency_max + (1 + z3_nslots(config));
 }
 
@@ -546,7 +555,7 @@ static int  z3_heuristic_max3(z3_config_t const *config) {
 static int  z3_heuristic(game_t const *game, node_t const node_raw) {
     z3_config_t *config = game->config;
     z3_node_t const node = node_raw;
-    uint8_t potency_max = z3_node_potency_max(config);
+    unsigned potency_max = z3_node_potency_max(config);
     //int decisive = (1 + config->M * config->N) * potency_max + (1 + z3_node_nempty(config, node));
     int decisive = potency_max * config->M * config->N * potency_max + (1 + z3_node_nempty(config, node));
     player_t winner = z3_winner(game, node_raw);
@@ -554,10 +563,10 @@ static int  z3_heuristic(game_t const *game, node_t const node_raw) {
         return winner * decisive;
     if (z3_node_stale(config, node))
         return 0;
-    uint8_t potency_mega_p1 = z3_mega_potency_player(config, node, P_OAKLEY);
-    uint8_t potency_mega_p2 = z3_mega_potency_player(config, node, P_TAYLOR);
-    uint8_t potency_subsum_p1 = z3_subsum_potency_player(config, node, P_OAKLEY);
-    uint8_t potency_subsum_p2 = z3_subsum_potency_player(config, node, P_TAYLOR);
+    unsigned potency_mega_p1 = z3_mega_potency_player(config, node, P_OAKLEY);
+    unsigned potency_mega_p2 = z3_mega_potency_player(config, node, P_TAYLOR);
+    unsigned potency_subsum_p1 = z3_subsum_potency_player(config, node, P_OAKLEY);
+    unsigned potency_subsum_p2 = z3_subsum_potency_player(config, node, P_TAYLOR);
     //return potency_mega_p1 - potency_mega_p2 + potency_subsum_p1 - potency_subsum_p2;
     return potency_mega_p1 * potency_subsum_p1 - potency_mega_p2 * potency_subsum_p2;
 /*
@@ -568,13 +577,13 @@ static int  z3_heuristic(game_t const *game, node_t const node_raw) {
 */
 /*
     ///  20170330 - deprecated  ///
-    uint8_t potency_max = z3_node_potency_max(config);
+    unsigned potency_max = z3_node_potency_max(config);
     // territory * maxpotency + maxpotency + nempty
     int decisive = potency_max * config->M * config->N + potency_max + (1 + z3_node_nempty(config, node));
-    uint8_t owned_p1_scaled = potency_max * z3_blocks_owned(config, node, P_OAKLEY);
-    uint8_t owned_p2_scaled = potency_max * z3_blocks_owned(config, node, P_TAYLOR);
-    uint8_t potency_p1 = z3_mega_potency_player(config, node, P_OAKLEY);
-    uint8_t potency_p2 = z3_mega_potency_player(config, node, P_TAYLOR);
+    unsigned owned_p1_scaled = potency_max * z3_blocks_owned(config, node, P_OAKLEY);
+    unsigned owned_p2_scaled = potency_max * z3_blocks_owned(config, node, P_TAYLOR);
+    unsigned potency_p1 = z3_mega_potency_player(config, node, P_OAKLEY);
+    unsigned potency_p2 = z3_mega_potency_player(config, node, P_TAYLOR);
     int value = (int)owned_p1_scaled + (int)potency_p1 - (int)owned_p2_scaled - (int)potency_p2;
     return value;
 */
@@ -583,7 +592,7 @@ static int  z3_heuristic(game_t const *game, node_t const node_raw) {
 static int z3_heuristic2(game_t const *game, node_t const node_raw) {
     z3_config_t *config = game->config;
     z3_node_t const node = node_raw;
-    uint8_t potency_max = z3_node_potency_max(config);
+    unsigned potency_max = z3_node_potency_max(config);
     //int decisive = (1 + config->M * config->N) * potency_max + (1 + z3_node_nempty(config, node));
     int decisive = potency_max + config->M * config->N * potency_max + (1 + z3_node_nempty(config, node));
     player_t winner = z3_winner(game, node_raw);
@@ -591,10 +600,10 @@ static int z3_heuristic2(game_t const *game, node_t const node_raw) {
         return winner * decisive;
     if (z3_node_stale(config, node))
         return 0;
-    uint8_t potency_mega_p1 = z3_mega_potency_player(config, node, P_OAKLEY);
-    uint8_t potency_mega_p2 = z3_mega_potency_player(config, node, P_TAYLOR);
-    uint8_t potency_subsum_p1 = z3_subsum_potency_player(config, node, P_OAKLEY);
-    uint8_t potency_subsum_p2 = z3_subsum_potency_player(config, node, P_TAYLOR);
+    unsigned potency_mega_p1 = z3_mega_potency_player(config, node, P_OAKLEY);
+    unsigned potency_mega_p2 = z3_mega_potency_player(config, node, P_TAYLOR);
+    unsigned potency_subsum_p1 = z3_subsum_potency_player(config, node, P_OAKLEY);
+    unsigned potency_subsum_p2 = z3_subsum_potency_player(config, node, P_TAYLOR);
     return potency_mega_p1 - potency_mega_p2 + potency_subsum_p1 - potency_subsum_p2;
     //return potency_subsum_p1 - potency_subsum_p2;
 }
@@ -602,7 +611,7 @@ static int z3_heuristic2(game_t const *game, node_t const node_raw) {
 static int z3_heuristic3(game_t const *game, node_t const node_raw) {
     z3_config_t *config = game->config;
     z3_node_t const node = node_raw;
-    uint8_t potency_max = z3_node_potency_max(config);
+    unsigned potency_max = z3_node_potency_max(config);
     //int decisive = (1 + config->M * config->N) * potency_max + (1 + z3_node_nempty(config, node));
     int decisive = config->M * config->N * potency_max + (1 + z3_node_nempty(config, node));
     player_t winner = z3_winner(game, node_raw);
@@ -610,10 +619,10 @@ static int z3_heuristic3(game_t const *game, node_t const node_raw) {
         return winner * decisive;
     if (z3_node_stale(config, node))
         return 0;
-    //uint8_t potency_mega_p1 = z3_mega_potency_player(config, node, P_OAKLEY);
-    //uint8_t potency_mega_p2 = z3_mega_potency_player(config, node, P_TAYLOR);
-    uint8_t potency_subsum_p1 = z3_subsum_potency_player(config, node, P_OAKLEY);
-    uint8_t potency_subsum_p2 = z3_subsum_potency_player(config, node, P_TAYLOR);
+    //unsigned potency_mega_p1 = z3_mega_potency_player(config, node, P_OAKLEY);
+    //unsigned potency_mega_p2 = z3_mega_potency_player(config, node, P_TAYLOR);
+    unsigned potency_subsum_p1 = z3_subsum_potency_player(config, node, P_OAKLEY);
+    unsigned potency_subsum_p2 = z3_subsum_potency_player(config, node, P_TAYLOR);
     //return potency_mega_p1 - potency_mega_p2 + potency_subsum_p1 - potency_subsum_p2;
     return potency_subsum_p1 - potency_subsum_p2;
 }
@@ -628,22 +637,22 @@ static void z3_publish(game_t const *game, node_t const node) {
 static node_t *z3_clone(game_t const *game, node_t const node_raw, size_t * const ntwins) {
     z3_config_t const *config = game->config;
     z3_node_t const node = node_raw;
-    uint8_t previous = z3_node_previous(node);
+    unsigned previous = z3_node_previous(node);
     char *mega = z3_node_mega(node);
     char *blocks = z3_node_blocks(config, node);
-    uint8_t pR = previous / config->N;
-    uint8_t pC = previous % config->N;
+    unsigned pR = previous / config->N;
+    unsigned pC = previous % config->N;
     z3_node_t row_flip = malloc(game_width(game));
     z3_node_t col_flip = malloc(game_width(game));
     z3_node_t rcb_flip = malloc(game_width(game));
-    *(uint8_t *)row_flip = BLKIDX(config->M - (1 + pR), pC, config->N);
-    *(uint8_t *)col_flip = BLKIDX(pR, config->N - (1 + pC), config->N);
-    *(uint8_t *)rcb_flip = BLKIDX(config->M - (1 + pR), config->N - (1 + pC), config->N);
+    *(unsigned *)row_flip = BLKIDX(config->M - (1 + pR), pC, config->N);
+    *(unsigned *)col_flip = BLKIDX(pR, config->N - (1 + pC), config->N);
+    *(unsigned *)rcb_flip = BLKIDX(config->M - (1 + pR), config->N - (1 + pC), config->N);
     char *row_flip_mega = z3_node_mega(row_flip);
     char *col_flip_mega = z3_node_mega(col_flip);
     char *rcb_flip_mega = z3_node_mega(rcb_flip);
-    for (uint8_t row = 0; row < config->M; ++row) {
-        for (uint8_t col = 0; col < config->N; ++col) {
+    for (unsigned row = 0; row < config->M; ++row) {
+        for (unsigned col = 0; col < config->N; ++col) {
             row_flip_mega[BLKIDX(config->M - (1 + row), col, config->N)] =
                 mega[BLKIDX(row, col, config->N)];
             col_flip_mega[BLKIDX(row, config->N - (1 + col), config->N)] = 
@@ -655,12 +664,12 @@ static node_t *z3_clone(game_t const *game, node_t const node_raw, size_t * cons
     char *row_flip_blocks = z3_node_blocks(config, row_flip);
     char *col_flip_blocks = z3_node_blocks(config, col_flip);
     char *rcb_flip_blocks = z3_node_blocks(config, rcb_flip);
-    for (uint8_t row = 0; row < config->M * config->M; ++row) {
-        uint8_t R = row / config->M;
-        uint8_t r = row % config->M;
-        for (uint8_t col = 0; col < config->N * config->N; ++col) {
-            uint8_t C = col / config->N;
-            uint8_t c = col % config->N;
+    for (unsigned row = 0; row < config->M * config->M; ++row) {
+        unsigned R = row / config->M;
+        unsigned r = row % config->M;
+        for (unsigned col = 0; col < config->N * config->N; ++col) {
+            unsigned C = col / config->N;
+            unsigned c = col % config->N;
             row_flip_blocks[MEGIDX(config->M - (1 + R), C,
                                    config->M - (1 + r), c,
                                    config->M, config->N)] =
@@ -714,23 +723,23 @@ static void z3_stratify(game_t const *game, node_t * const offspring, size_t con
 
 // returns 'z3_t *' game initialized with default values
 z3_t  *z3_init(bool player1_ai, bool player2_ai) {
-    uint8_t block_init = nkrand(INIT_M * INIT_N);
+    unsigned block_init = nkrand(INIT_M * INIT_N);
     return z3_init_w(INIT_M, INIT_N, INIT_K, block_init, INIT_STALE,
                      INIT_TILE_P1, INIT_TILE_P2, INIT_TILE_NA, INIT_TILE_CLOG,
                      INIT_DEPTH_AI, player1_ai, player2_ai);
 }
 
 z3_t  *z3_init_h2(bool player1_ai, bool player2_ai) {
-    uint8_t block_init = nkrand(INIT_M * INIT_N);
+    unsigned block_init = nkrand(INIT_M * INIT_N);
     return z3_init_h2_w(INIT_M, INIT_N, INIT_K, block_init, INIT_STALE,
                      INIT_TILE_P1, INIT_TILE_P2, INIT_TILE_NA, INIT_TILE_CLOG,
                      INIT_DEPTH_AI, player1_ai, player2_ai);
 }
 
 // returns 'z3_t *' game initialized with passed values
-z3_t  *z3_init_w(uint8_t M, uint8_t N, uint8_t K, uint8_t block_init, z3_stale_t mate,
+z3_t  *z3_init_w(unsigned M, unsigned N, unsigned K, unsigned block_init, z3_stale_t mate,
                  char tile_p1, char tile_p2, char tile_na, char tile_clog,
-                 uint8_t depth, bool player1_ai, bool player2_ai) {
+                 unsigned depth, bool player1_ai, bool player2_ai) {
     z3_config_t config_raw = {.M = M, .N = N, .K = K,
                               .mate = mate,
                               .tile_p1 = tile_p1,
@@ -761,9 +770,9 @@ z3_t  *z3_init_w(uint8_t M, uint8_t N, uint8_t K, uint8_t block_init, z3_stale_t
     return game;
 }
 
-z3_t  *z3_init_h2_w(uint8_t M, uint8_t N, uint8_t K, uint8_t block_init, z3_stale_t mate,
+z3_t  *z3_init_h2_w(unsigned M, unsigned N, unsigned K, unsigned block_init, z3_stale_t mate,
                  char tile_p1, char tile_p2, char tile_na, char tile_clog,
-                 uint8_t depth, bool player1_ai, bool player2_ai) {
+                 unsigned depth, bool player1_ai, bool player2_ai) {
     z3_config_t config_raw = {.M = M, .N = N, .K = K,
                               .mate = mate,
                               .tile_p1 = tile_p1,
@@ -849,7 +858,7 @@ static void z3_play_ai2_main(z3_t *game1, z3_t *game2, int zzz_count[2]) {
     printf("zzz:\t%d - %d\n", zzz_count[0], zzz_count[1]);
     printf("\n");
     //sleep(2);
-    uint8_t block_init = nkrand(config1->M * config1->N);
+    unsigned block_init = nkrand(config1->M * config1->N);
     z3_node_t root = z3_node_root(config1, block_init);
     game_reset_root(game1, root);
     free(root);
@@ -872,6 +881,7 @@ z3_t *z3_iOS_SetupGame_Human(int M, int N, int K, int initBlock, int staleMode) 
 //z3_t *z3_iOS_SetupGame_AI(int M, int N, int K, int initBlock, int stateMode, int playerAI, int difficulty);
 
 int *z3_iOS_Move_Human(z3_t *humanGame, int tileNumber, int playerNumber, size_t *nResults) {
+    printf("reached z3_iOS_Move_Human\n");
     z3_config_t *config = humanGame->config;
     --tileNumber;
     const char playerTile = playerNumber == 1 ? config->tile_p1 : config->tile_p2;
@@ -883,37 +893,42 @@ int *z3_iOS_Move_Human(z3_t *humanGame, int tileNumber, int playerNumber, size_t
     int blockIndex = blockRowIndex * config->N + blockColumnIndex;
     int subBlockIndex = subBlockRowIndex * config->N + subBlockColumnIndex;
     int tileIndex = blockIndex * config->N * config->M + subBlockIndex;
-    //printf("blockIndex: %d\n", blockIndex);
-    //printf("subBlockIndex: %d\n", subBlockIndex);
-    //printf("tileIndex: %d\n", tileIndex);
+    printf("blockIndex: %d\n", blockIndex);
+    printf("subBlockIndex: %d\n", subBlockIndex);
+    printf("tileIndex: %d\n", tileIndex);
 
-    uint8_t checkBlockIndex = z3_node_previous(game_state(humanGame));
-    //printf("checkBlockIndex: %d\n", checkBlockIndex);
+    unsigned checkBlockIndex = z3_node_previous(game_state(humanGame));
+    printf("checkBlockIndex: %d\n", checkBlockIndex);
     if (blockIndex != checkBlockIndex)
         return NULL;
     if (subBlockIndex >= config->M * config->N)
         return NULL;
 
-    //printf("Reached duplicatings...\n");
+    printf("Reached duplicatings...\n");
     z3_node_t currentState = z3_node_dup(humanGame, game_state(humanGame));
     z3_node_t newState = z3_node_dup(humanGame, game_state(humanGame));
 
-    char *newBlocks = z3_node_blocks(config, newState);
-    if (newBlocks[tileIndex] != config->tile_na)
+    char *newBlock = z3_node_block(config, newState, blockIndex);
+    if (newBlock[subBlockIndex] != config->tile_na)
         return NULL;
-    newBlocks[tileIndex] = playerTile;
-    *(uint8_t *)newState = subBlockIndex;
+    newBlock[subBlockIndex] = playerTile;
+    *(unsigned *)newState = subBlockIndex;
+    printf("newState:\n");
+    humanGame->publish(humanGame, newState);
 
     size_t noptions;
     node_t *options = humanGame->spawn(humanGame, currentState, &noptions);
     size_t optionIndex = config->M * config->N;
     for (size_t i = 0; i < noptions; ++i) {
-        if (!memcmp(newBlocks, z3_node_blocks(config, options[i]), config->M * config->M * config->N * config->N)) {
+        printf("options[i]:\n");
+        humanGame->publish(humanGame, options[i]);
+        if (!memcmp(newBlock, z3_node_block(config, options[i], blockIndex), config->M * config->N)) {
             optionIndex = i;
             break;
         }
     }
 
+    printf("optionIndex = %u\n", (unsigned)optionIndex);
     if (optionIndex == config->M * config->N)
         return NULL;
 

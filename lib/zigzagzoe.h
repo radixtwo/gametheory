@@ -16,12 +16,12 @@ typedef game_t z3_t;
 
 z3_t *z3_init(bool player1_ai, bool player2_ai);
 z3_t *z3_init_h2(bool player1_ai, bool player2_ai);
-z3_t *z3_init_w(uint8_t M, uint8_t N, uint8_t K, uint8_t block_init, z3_stale_t mate,
+z3_t *z3_init_w(unsigned M, unsigned N, unsigned K, unsigned block_init, z3_stale_t mate,
                 char tile_p1, char tile_p2, char tile_na, char tile_clog,
-                uint8_t depth, bool player1_ai, bool player2_ai);
-z3_t *z3_init_h2_w(uint8_t M, uint8_t N, uint8_t K, uint8_t block_init, z3_stale_t mate,
+                unsigned depth, bool player1_ai, bool player2_ai);
+z3_t *z3_init_h2_w(unsigned M, unsigned N, unsigned K, unsigned block_init, z3_stale_t mate,
                 char tile_p1, char tile_p2, char tile_na, char tile_clog,
-                uint8_t depth, bool player1_ai, bool player2_ai);
+                unsigned depth, bool player1_ai, bool player2_ai);
 void z3_reset(z3_t *game);
 void z3_free(z3_t *game);
 void z3_advance_ai2(z3_t *game1, z3_t *game2);

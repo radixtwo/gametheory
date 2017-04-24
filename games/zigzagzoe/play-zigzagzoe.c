@@ -1,5 +1,6 @@
 
 #include "zigzagzoe.h"
+//#include "iOS_ZZZHumanGame.h"
 #include "ansicolor.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -11,7 +12,8 @@ int main() {
     printf("%sregular match or heuristic test (1, 2)?\n", ANSI.erase);
     scanf(" %d", &type);
     if (type == 1) {
-        z3_t *game = z3_init(false, false);
+        //z3_t *game = z3_init(false, false);
+        z3_t *game = z3_iOS_SetupGame_Human(4, 4, 4, rand() % 16, 1);
         printf("HvH, HvAI, AIvH, or AIvAI (1, 2, 3, 4)?\n");
         scanf(" %d", &type);
         while (true) {
