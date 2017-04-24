@@ -396,7 +396,7 @@ static unsigned  z3_subsum_potency_player(z3_config_t const *config, z3_node_t c
     unsigned potency_max = z3_node_potency_max(config);
     unsigned potency = 0;
     for (size_t b = 0; b < nblocks; ++b) {
-        char *block = z3_node_block(config, node, b);
+        char *block = z3_node_block(config, node, (unsigned)b);
         char tile_player = z3_block_won(config, block);
         player_t player_block_won = z3_player_tile(config, tile_player);
         if (player_block_won == player)
