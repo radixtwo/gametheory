@@ -4,7 +4,7 @@
 #include <stdbool.h>
 
 int main() {
-    SetupHumanGame(4, 4, 3, 1, 1);
+    SetupHumanGame(3, 3, 3, 5, 1);
     int playerNumber = 1;
     while (true) {
         PrintHumanGame();

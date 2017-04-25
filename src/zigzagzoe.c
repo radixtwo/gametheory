@@ -232,7 +232,7 @@ static char z3_block_won(z3_config_t const *config, char const *block, unsigned 
             if (won) {
               if (indices) {
                 indices[0] = BLKIDX(row, col, config->N);
-                indices[1] = BLKIDX(row, col + n, config->N);
+                indices[1] = BLKIDX(row, col + (n - 1), config->N);
               }
               return tile;
             }
@@ -254,7 +254,7 @@ static char z3_block_won(z3_config_t const *config, char const *block, unsigned 
             if (won) {
               if (indices) {
                 indices[0] = BLKIDX(row, col, config->N);
-                indices[1] = BLKIDX(row + n, col, config->N);
+                indices[1] = BLKIDX(row + (n - 1), col, config->N);
               }
               return tile;
             }
@@ -276,7 +276,7 @@ static char z3_block_won(z3_config_t const *config, char const *block, unsigned 
             if (won) {
               if (indices) {
                 indices[0] = BLKIDX(row, col, config->N);
-                indices[1] = BLKIDX(row + n, col + n, config->N);
+                indices[1] = BLKIDX(row + (n - 1), col + (n - 1), config->N);
               }
               return tile;
             }
@@ -298,7 +298,7 @@ static char z3_block_won(z3_config_t const *config, char const *block, unsigned 
             if (won) {
               if (indices) {
                 indices[0] = BLKIDX(row, col, config->N);
-                indices[1] = BLKIDX(row - n, col + n, config->N);
+                indices[1] = BLKIDX(row - (n - 1), col + (n - 1), config->N);
               }
               return tile;
             }
@@ -1029,6 +1029,7 @@ int *z3_iOS_Move_Human(z3_t *humanGame, int tileNumber, int playerNumber, size_t
 
         unsigned indices[2];
         z3_block_won(config, z3_node_block(config, newState, blockIndex), indices);
+        //printf("i[0]=%u; i[1]=%u\n", indices[0], indices[1]);
 
         unsigned originGridRowIndex = blockRowIndex * config->M;
         unsigned originGridColIndex = blockColumnIndex * config->N;
@@ -1048,6 +1049,12 @@ int *z3_iOS_Move_Human(z3_t *humanGame, int tileNumber, int playerNumber, size_t
         unsigned endGridIndex = endGridRowIndex * config->N * config->N + endGridColIndex;
         //unsigned endGridIndex = originGridIndex + endSubRowIndex * config->N * config->N + endSubColIndex; // this also works
 
+/*
+        printf("oGRI %u; oGCI %u\nsSRI %u; sSCI %u; sGRI %u; sGCI %u; sGI %u\neSRI %u; eSCI %u; eGRI %u; eGCI %u; EGI %u\n",
+               originGridRowIndex, originGridColIndex,
+               startSubRowIndex, startSubColIndex, startGridRowIndex, startGridColIndex, startGridIndex,
+               endSubRowIndex, endSubColIndex, endGridRowIndex, endGridColIndex, endGridIndex);
+*/
         gameInfo[4] = 1 + (int)startGridIndex;
         gameInfo[5] = 1 + (int)endGridIndex;
     }
