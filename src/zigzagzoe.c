@@ -105,8 +105,8 @@ static inline size_t  z3_node_width(z3_config_t const *config) {
 }
 
 // extracts 'previous' from 'z3_node_t' (index of sub-board for current player)
-static inline unsigned z3_node_previous(z3_node_t const node) {
-    return *(unsigned *)node;
+static inline uint8_t z3_node_previous(z3_node_t const node) {
+    return *(uint8_t *)node;
 }
 
 // extracts mega-board from 'z3_node_t' (MxN board recording won sub-boards)
@@ -120,7 +120,7 @@ static inline char  *z3_node_blocks(z3_config_t const *config, z3_node_t node) {
 }
 
 // extracts sub-board for current player from 'z3_node_t'
-static inline char  *z3_node_block(z3_config_t const *config, z3_node_t const node, unsigned previous) {
+static inline char  *z3_node_block(z3_config_t const *config, z3_node_t const node, uint8_t previous) {
     char *blocks = z3_node_blocks(config, node);
     unsigned row = previous / config->N;
     unsigned col = previous % config->N;
@@ -134,8 +134,8 @@ static inline unsigned z3_node_ntiles(z3_config_t const *config, z3_node_t const
     for (size_t slot = 0; slot < z3_nslots(config); ++slot)
         if (blocks[slot] != config->tile_na)
             ++ntiles;
-    printf("ntiles = %u\n", (unsigned)ntiles);
-    printf("nslots = %u\n", (unsigned)z3_nslots(config));
+    //printf("ntiles = %u\n", (unsigned)ntiles);
+    //printf("nslots = %u\n", (unsigned)z3_nslots(config));
     return ntiles;
 }
 
@@ -156,8 +156,8 @@ static inline bool  z3_node_player1(z3_config_t const *config, z3_node_t const n
 
 // returns 'true' if the sub-board for the current player has no options
 static inline bool  z3_node_stale(z3_config_t const *config, z3_node_t const node) {
-    printf("reached z3_node_stale\n");
-    unsigned previous = z3_node_previous(node);
+    //printf("reached z3_node_stale\n");
+    uint8_t previous = z3_node_previous(node);
     char *block = z3_node_block(config, node, previous);
     for (unsigned slot = 0; slot < config->M * config->N; ++slot)
         if (block[slot] == config->tile_na)
@@ -166,10 +166,10 @@ static inline bool  z3_node_stale(z3_config_t const *config, z3_node_t const nod
 }
 
 // returns root 'z3_node_t' given initial sub-board for player 1
-static inline z3_node_t z3_node_root(z3_config_t const *config, unsigned previous_init) {
+static inline z3_node_t z3_node_root(z3_config_t const *config, uint8_t previous_init) {
     size_t width = z3_node_width(config);
     z3_node_t root = malloc(width * sizeof(char));
-    *(unsigned *)root = previous_init;
+    *(uint8_t *)root = previous_init;
     for (size_t slot = 1; slot < width; ++slot)
         root[slot] = config->tile_na;
     return root;
@@ -208,10 +208,10 @@ static unsigned  z3_blocks_owned(z3_config_t const *config, z3_node_t node, play
 */
 
 // returns tile of winner of given block or empty tile if no winner
-static char z3_block_won(z3_config_t const *config, char const *block) {
+static char z3_block_won(z3_config_t const *config, char const *block, unsigned indices[2]) {
     char tile = config->tile_na;
     bool won = true;
-    int8_t row, col, n;
+    unsigned row, col, n;
     for (row = 0; row < config->M; ++row) {
         for (col = 0; col < config->N - config->K + 1; ++col) {
             tile = block[BLKIDX(row, col, config->N)];
@@ -225,8 +225,13 @@ static char z3_block_won(z3_config_t const *config, char const *block) {
                     break;
                 }
             }
-            if (won)
+            if (won) {
+              if (indices) {
+                indices[0] = BLKIDX(row, col, config->N);
+                indices[1] = BLKIDX(row, col + n, config->N);
+              }
               return tile;
+            }
         }
     }
     for (row = 0; row < config->M - config->K + 1; ++row) {
@@ -242,8 +247,13 @@ static char z3_block_won(z3_config_t const *config, char const *block) {
                     break;
                 }
             }
-            if (won)
+            if (won) {
+              if (indices) {
+                indices[0] = BLKIDX(row, col, config->N);
+                indices[1] = BLKIDX(row + n, col, config->N);
+              }
               return tile;
+            }
         }
     }
     for (row = 0; row < config->M - config->K + 1; ++row) {
@@ -259,8 +269,13 @@ static char z3_block_won(z3_config_t const *config, char const *block) {
                     break;
                 }
             }
-            if (won)
+            if (won) {
+              if (indices) {
+                indices[0] = BLKIDX(row, col, config->N);
+                indices[1] = BLKIDX(row + n, col + n, config->N);
+              }
               return tile;
+            }
         }
     }
     for (row = config->M - 1; row >= config->K - 1; --row) {
@@ -276,8 +291,13 @@ static char z3_block_won(z3_config_t const *config, char const *block) {
                     break;
                 }
             }
-            if (won)
+            if (won) {
+              if (indices) {
+                indices[0] = BLKIDX(row, col, config->N);
+                indices[1] = BLKIDX(row - n, col + n, config->N);
+              }
               return tile;
+            }
         }
     }
     return config->tile_na;
@@ -286,9 +306,9 @@ static char z3_block_won(z3_config_t const *config, char const *block) {
 // returns 1 or -1 if player 1 or 2, respectively, created a zigzagzoe for given node
 // returns 0, otherwise
 static int8_t z3_node_zzz(z3_config_t const *config, z3_node_t const node) {
-    printf("reached z3_node_zzz\n");
+    //printf("reached z3_node_zzz\n");
     char *mega = z3_node_mega(node);
-    char winner = z3_block_won(config, mega);
+    char winner = z3_block_won(config, mega, NULL);
     if (winner == config->tile_p1)
       return 1;
     if (winner == config->tile_p2)
@@ -302,7 +322,7 @@ static unsigned  z3_block_potency_player(z3_config_t const *config, char const *
     char tile_na = config->tile_na;
     bool potential = true;
     unsigned potency = 0;
-    int8_t row, col, n;
+    unsigned row, col, n;
     for (row = 0; row < config->M; ++row) {
         for (col = 0; col < config->N - config->K + 1; ++col) {
             potential = true;
@@ -396,8 +416,13 @@ static unsigned  z3_subsum_potency_player(z3_config_t const *config, z3_node_t c
     unsigned potency_max = z3_node_potency_max(config);
     unsigned potency = 0;
     for (size_t b = 0; b < nblocks; ++b) {
+<<<<<<< HEAD
         char *block = z3_node_block(config, node, b);
+        char tile_player = z3_block_won(config, block, NULL);
+=======
+        char *block = z3_node_block(config, node, (unsigned)b);
         char tile_player = z3_block_won(config, block);
+>>>>>>> origin/master
         player_t player_block_won = z3_player_tile(config, tile_player);
         if (player_block_won == player)
             potency += potency_max;
@@ -423,7 +448,7 @@ static void z3_node_print(z3_config_t const *config, z3_node_t const node) {
         printf("\n");
     }
     printf("\n");
-    unsigned previous = z3_node_previous(node);
+    uint8_t previous = z3_node_previous(node);
     char *blocks = z3_node_blocks(config, node);
     unsigned opt_count = 0;
     for (unsigned row = 0; row < config->M * config->M; ++row) {
@@ -467,7 +492,7 @@ static void z3_node_print(z3_config_t const *config, z3_node_t const node) {
 
 // returns 'true' if given node has no children (or options)
 static bool z3_leaf(game_t const *game, node_t const node) {
-    printf("reached z3_leaf\n");
+    //printf("reached z3_leaf\n");
     return z3_node_stale(game->config, node) ||
              z3_node_zzz(game->config, node);
 }
@@ -475,31 +500,31 @@ static bool z3_leaf(game_t const *game, node_t const node) {
 // returns array of children of passed node
 // stores length of array in '*noffspring'
 static node_t *z3_spawn(game_t const *game, node_t const node_raw, size_t * const noffspring) {
-    printf("z3_spawn reached\n");
+    //printf("z3_spawn reached\n");
     z3_config_t const *config = game->config;
     z3_node_t const node = node_raw;
-    unsigned previous = z3_node_previous(node);
+    uint8_t previous = z3_node_previous(node);
     char *block = z3_node_block(config, node, previous);
-    game->publish(game, node_raw);
+    //game->publish(game, node_raw);
     char tile = z3_node_player1(config, node) ? config->tile_p1 : config->tile_p2;
     z3_node_t child = NULL;
     char *block_child = NULL;
     z3_node_t offspring_buf[config->M * config->N];
     *noffspring = 0;
-    printf("z3_spawn: enumerating children\n");
+    //printf("z3_spawn: enumerating children\n");
     for (unsigned r = 0; r < config->M; ++r) {
         for (unsigned c = 0; c < config->N; ++c) {
             if (block[BLKIDX(r, c, config->N)] == config->tile_na) {
                 child = malloc(game_width(game));
                 memcpy(child, node, game_width(game));
-                *(unsigned *)child = r * config->N + c;
+                *(uint8_t *)child = r * config->N + c;
                 block_child = z3_node_block(config, child, previous);
                 block_child[BLKIDX(r, c, config->N)] = tile;
                 offspring_buf[(*noffspring)++] = child;
             }
         }
     }
-    printf("z3_spawn: updating children megaboards\n");
+    //printf("z3_spawn: updating children megaboards\n");
     node_t *offspring = malloc(*noffspring * sizeof(node_t));
     memcpy(offspring, offspring_buf, *noffspring * sizeof(node_t));
     char *mega = z3_node_mega(node);
@@ -508,7 +533,7 @@ static node_t *z3_spawn(game_t const *game, node_t const node_raw, size_t * cons
         for (size_t i = 0; i < *noffspring; ++i) {
             child = offspring[i];
             block_child = z3_node_block(config, child, previous);
-            if (z3_block_won(config, block_child) != config->tile_na) {
+            if (z3_block_won(config, block_child, NULL) != config->tile_na) {
                 mega_child = z3_node_mega(child);
                 mega_child[previous] = tile;
             }
@@ -637,17 +662,17 @@ static void z3_publish(game_t const *game, node_t const node) {
 static node_t *z3_clone(game_t const *game, node_t const node_raw, size_t * const ntwins) {
     z3_config_t const *config = game->config;
     z3_node_t const node = node_raw;
-    unsigned previous = z3_node_previous(node);
+    uint8_t previous = z3_node_previous(node);
     char *mega = z3_node_mega(node);
     char *blocks = z3_node_blocks(config, node);
-    unsigned pR = previous / config->N;
-    unsigned pC = previous % config->N;
+    uint8_t pR = previous / config->N;
+    uint8_t pC = previous % config->N;
     z3_node_t row_flip = malloc(game_width(game));
     z3_node_t col_flip = malloc(game_width(game));
     z3_node_t rcb_flip = malloc(game_width(game));
-    *(unsigned *)row_flip = BLKIDX(config->M - (1 + pR), pC, config->N);
-    *(unsigned *)col_flip = BLKIDX(pR, config->N - (1 + pC), config->N);
-    *(unsigned *)rcb_flip = BLKIDX(config->M - (1 + pR), config->N - (1 + pC), config->N);
+    *(uint8_t *)row_flip = BLKIDX(config->M - (1 + pR), pC, config->N);
+    *(uint8_t *)col_flip = BLKIDX(pR, config->N - (1 + pC), config->N);
+    *(uint8_t *)rcb_flip = BLKIDX(config->M - (1 + pR), config->N - (1 + pC), config->N);
     char *row_flip_mega = z3_node_mega(row_flip);
     char *col_flip_mega = z3_node_mega(col_flip);
     char *rcb_flip_mega = z3_node_mega(rcb_flip);
@@ -723,21 +748,21 @@ static void z3_stratify(game_t const *game, node_t * const offspring, size_t con
 
 // returns 'z3_t *' game initialized with default values
 z3_t  *z3_init(bool player1_ai, bool player2_ai) {
-    unsigned block_init = nkrand(INIT_M * INIT_N);
+    uint8_t block_init = nkrand(INIT_M * INIT_N);
     return z3_init_w(INIT_M, INIT_N, INIT_K, block_init, INIT_STALE,
                      INIT_TILE_P1, INIT_TILE_P2, INIT_TILE_NA, INIT_TILE_CLOG,
                      INIT_DEPTH_AI, player1_ai, player2_ai);
 }
 
 z3_t  *z3_init_h2(bool player1_ai, bool player2_ai) {
-    unsigned block_init = nkrand(INIT_M * INIT_N);
+    uint8_t block_init = nkrand(INIT_M * INIT_N);
     return z3_init_h2_w(INIT_M, INIT_N, INIT_K, block_init, INIT_STALE,
                      INIT_TILE_P1, INIT_TILE_P2, INIT_TILE_NA, INIT_TILE_CLOG,
                      INIT_DEPTH_AI, player1_ai, player2_ai);
 }
 
 // returns 'z3_t *' game initialized with passed values
-z3_t  *z3_init_w(unsigned M, unsigned N, unsigned K, unsigned block_init, z3_stale_t mate,
+z3_t  *z3_init_w(unsigned M, unsigned N, unsigned K, uint8_t block_init, z3_stale_t mate,
                  char tile_p1, char tile_p2, char tile_na, char tile_clog,
                  unsigned depth, bool player1_ai, bool player2_ai) {
     z3_config_t config_raw = {.M = M, .N = N, .K = K,
@@ -770,7 +795,7 @@ z3_t  *z3_init_w(unsigned M, unsigned N, unsigned K, unsigned block_init, z3_sta
     return game;
 }
 
-z3_t  *z3_init_h2_w(unsigned M, unsigned N, unsigned K, unsigned block_init, z3_stale_t mate,
+z3_t  *z3_init_h2_w(unsigned M, unsigned N, unsigned K, uint8_t block_init, z3_stale_t mate,
                  char tile_p1, char tile_p2, char tile_na, char tile_clog,
                  unsigned depth, bool player1_ai, bool player2_ai) {
     z3_config_t config_raw = {.M = M, .N = N, .K = K,
@@ -858,7 +883,7 @@ static void z3_play_ai2_main(z3_t *game1, z3_t *game2, int zzz_count[2]) {
     printf("zzz:\t%d - %d\n", zzz_count[0], zzz_count[1]);
     printf("\n");
     //sleep(2);
-    unsigned block_init = nkrand(config1->M * config1->N);
+    uint8_t block_init = nkrand(config1->M * config1->N);
     z3_node_t root = z3_node_root(config1, block_init);
     game_reset_root(game1, root);
     free(root);
@@ -881,7 +906,7 @@ z3_t *z3_iOS_SetupGame_Human(int M, int N, int K, int initBlock, int staleMode) 
 //z3_t *z3_iOS_SetupGame_AI(int M, int N, int K, int initBlock, int stateMode, int playerAI, int difficulty);
 
 int *z3_iOS_Move_Human(z3_t *humanGame, int tileNumber, int playerNumber, size_t *nResults) {
-    printf("reached z3_iOS_Move_Human\n");
+    //printf("reached z3_iOS_Move_Human\n");
     z3_config_t *config = humanGame->config;
     --tileNumber;
     const char playerTile = playerNumber == 1 ? config->tile_p1 : config->tile_p2;
@@ -892,19 +917,19 @@ int *z3_iOS_Move_Human(z3_t *humanGame, int tileNumber, int playerNumber, size_t
     int subBlockColumnIndex = tileNumber % config->N;
     int blockIndex = blockRowIndex * config->N + blockColumnIndex;
     int subBlockIndex = subBlockRowIndex * config->N + subBlockColumnIndex;
-    int tileIndex = blockIndex * config->N * config->M + subBlockIndex;
-    printf("blockIndex: %d\n", blockIndex);
-    printf("subBlockIndex: %d\n", subBlockIndex);
-    printf("tileIndex: %d\n", tileIndex);
+    //int nodeBlocksIndex = blockIndex * config->N * config->M + subBlockIndex;
+    //printf("blockIndex: %d\n", blockIndex);
+    //printf("subBlockIndex: %d\n", subBlockIndex);
+    //printf("tileIndex: %d\n", tileIndex);
 
-    unsigned checkBlockIndex = z3_node_previous(game_state(humanGame));
-    printf("checkBlockIndex: %d\n", checkBlockIndex);
-    if (blockIndex != checkBlockIndex)
+    uint8_t checkBlockIndex = z3_node_previous(game_state(humanGame));
+    //printf("checkBlockIndex: %d\n", checkBlockIndex);
+    if (blockIndex != (int)checkBlockIndex)
         return NULL;
-    if (subBlockIndex >= config->M * config->N)
+    if (subBlockIndex >= (int)(config->M * config->N))
         return NULL;
 
-    printf("Reached duplicatings...\n");
+    //printf("Reached duplicatings...\n");
     z3_node_t currentState = z3_node_dup(humanGame, game_state(humanGame));
     z3_node_t newState = z3_node_dup(humanGame, game_state(humanGame));
 
@@ -912,23 +937,23 @@ int *z3_iOS_Move_Human(z3_t *humanGame, int tileNumber, int playerNumber, size_t
     if (newBlock[subBlockIndex] != config->tile_na)
         return NULL;
     newBlock[subBlockIndex] = playerTile;
-    *(unsigned *)newState = subBlockIndex;
-    printf("newState:\n");
-    humanGame->publish(humanGame, newState);
+    *(uint8_t *)newState = subBlockIndex;
+    //printf("newState:\n");
+    //humanGame->publish(humanGame, newState);
 
     size_t noptions;
     node_t *options = humanGame->spawn(humanGame, currentState, &noptions);
     size_t optionIndex = config->M * config->N;
     for (size_t i = 0; i < noptions; ++i) {
-        printf("options[i]:\n");
-        humanGame->publish(humanGame, options[i]);
+        //printf("options[i]:\n");
+        //humanGame->publish(humanGame, options[i]);
         if (!memcmp(newBlock, z3_node_block(config, options[i], blockIndex), config->M * config->N)) {
             optionIndex = i;
             break;
         }
     }
 
-    printf("optionIndex = %u\n", (unsigned)optionIndex);
+    //printf("optionIndex = %u\n", (unsigned)optionIndex);
     if (optionIndex == config->M * config->N)
         return NULL;
 
@@ -942,7 +967,7 @@ int *z3_iOS_Move_Human(z3_t *humanGame, int tileNumber, int playerNumber, size_t
         free(options[i]);
     free(options);
 
-    *nResults = 4;
+    *nResults = 8;
     int *gameInfo = malloc(*nResults);
     gameInfo[0] = 0;
     if (humanGame->leaf(humanGame, newState)) {
@@ -959,12 +984,44 @@ int *z3_iOS_Move_Human(z3_t *humanGame, int tileNumber, int playerNumber, size_t
         }
     }
 
+    if (gameInfo[0] && gameInfo[0] != 3) {
+        unsigned indices[2];
+        z3_block_won(config, z3_node_mega(newState), indices);
+        gameInfo[6] = 1 + indices[0];
+        gameInfo[7] = 1 + indices[1];
+    }
+
     char *currentMega = z3_node_mega(currentState);
     char *newMega = z3_node_mega(newState);
     if (!memcmp(currentMega, newMega, config->M * config->N))
         gameInfo[1] = 0;
-    else
+    else {
         gameInfo[1] = 1 + blockIndex;
+
+        unsigned indices[2];
+        z3_block_won(config, z3_node_block(config, newState, blockIndex), indices);
+
+        unsigned originGridRowIndex = blockRowIndex * config->M;
+        unsigned originGridColIndex = blockColumnIndex * config->N;
+        //unsigned originGridIndex = originGridRowIndex * config->N * config->N + originGridColIndex;
+
+        unsigned startSubRowIndex = indices[0] / config->N;
+        unsigned startSubColIndex = indices[0] % config->N;
+        unsigned startGridRowIndex = originGridRowIndex + startSubRowIndex;
+        unsigned startGridColIndex = originGridColIndex + startSubColIndex;
+        unsigned startGridIndex = startGridRowIndex * config->N * config->N + startGridColIndex;
+        //unsigned startGridIndex = originGridIndex + startSubRowIndex * config->N * config->N + startSubColIndex; // this also works
+
+        unsigned endSubRowIndex = indices[1] / config->N;
+        unsigned endSubColIndex = indices[1] % config->N;
+        unsigned endGridRowIndex = originGridRowIndex + endSubRowIndex;
+        unsigned endGridColIndex = originGridColIndex + endSubColIndex;
+        unsigned endGridIndex = endGridRowIndex * config->N * config->N + endGridColIndex;
+        //unsigned endGridIndex = originGridIndex + endSubRowIndex * config->N * config->N + endSubColIndex; // this also works
+
+        gameInfo[4] = 1 + (int)startGridIndex;
+        gameInfo[5] = 1 + (int)endGridIndex;
+    }
 
     free(currentState);
     free(newState);

@@ -357,7 +357,7 @@ void game_publish_state(game_t *game) {
 
 
 bool game_move(game_t *game, node_t node) {
-    printf("reached game_move\n");
+    //printf("reached game_move\n");
     size_t noptions;
     node_t *options = game->spawn(game, game_state(game), &noptions);
     bool legal = false;
@@ -378,7 +378,7 @@ bool game_move(game_t *game, node_t node) {
 }
 
 bool game_advance(game_t *game) {
-    printf("reached game_advance\n");
+    //printf("reached game_advance\n");
     data_t *data = game->data;
     player_t player = game_player(game);
     node_t move = NULL;
@@ -388,7 +388,7 @@ bool game_advance(game_t *game) {
         move = human_move(game);
     if (move) {
         game_move(game, move);
-        printf("game: moved game\n");
+        //printf("game: moved game\n");
         free(move);
         return true;
     }
@@ -451,22 +451,22 @@ void game_play(game_t *game) {
         int move_count = 0;
         while (!game->leaf(game, game_state(game))) {
             publish_state(game);
-            printf("start of loop %d\n", move_count);
+            //printf("start of loop %d\n", move_count);
             bool moved = game_advance(game);
-            printf("game: advanced game\n");
-            publish_state(game);
+            //printf("game: advanced game\n");
+            //publish_state(game);
             if (!moved)
                 continue;
             //printf("eval = %d; heuristic = %d\n", -1 * game_player(game) * game->data->eval, game->heuristic(game, game_state(game)));
             if (data->negamax && move_count % 2) {
-                printf("reached move_count %% 2\n");
+                //printf("reached move_count %% 2\n");
                 unsigned game_nbytes = (unsigned)negamax_nbytes(data->negamax);
                 unsigned game_size = (unsigned)negamax_ttable_size(data->negamax);
                 printf("memory: %f MiB\n", (double)game_nbytes/1024/1024);
                 printf("ttable:  %u\n", game_size);
                 printf("\n");
             }
-            printf("end of loop %d\n", move_count);
+            //printf("end of loop %d\n", move_count);
             ++move_count;
         }
         publish_state(game);

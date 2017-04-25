@@ -8,7 +8,7 @@ void SetupAIGame(int m, int n, int k, int initBoard, int staleMode, int playerNu
 void EndAIGame();
 int *AIMove(int tileNumber, int playerNumber);
 void ReverseAIMove();
-void PrintAIGame();
+//void PrintAIGame();
 
 #endif // IOS_ZZZ_AI_GAME_H
 
