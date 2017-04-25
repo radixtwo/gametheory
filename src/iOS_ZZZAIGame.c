@@ -5,8 +5,9 @@
 static z3_t *aiGame;
 static char const *dataDirPath;
 
-void SetupAIGame(int m, int n, int k, int initBoard, int staleMode, int humanPlayerNum, int difficulty, char const *dataDirPath) {
-    //aiGame = z3_iOS_SetupGame_AI(m, n, k, initBoard, staleMode);
+void SetupAIGame(int m, int n, int k, int initBoard, int staleMode, int humanPlayerNum, int difficulty, char const *dataDirectoryPath) {
+    dataDirPath = dataDirectoryPath;
+    aiGame = z3_iOS_SetupGame_AI(m, n, k, initBoard, staleMode, humanPlayerNum, difficulty);
 }
 
 void EndAIGame() {

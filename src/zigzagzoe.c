@@ -558,23 +558,29 @@ static player_t z3_winner(game_t const *game, node_t const node) {
     return P_DAKOTA;
 }
 
+/*
 // returns maximum heuristic value of 'z3_heuristic'
 static int  z3_heuristic_max(z3_config_t const *config) {
     unsigned potency_max = z3_node_potency_max(config);
     //return (1 + config->M * config->N) * potency_max + (1 + z3_nslots(config));
     return potency_max * config->M * config->N * potency_max + (1 + z3_nslots(config));
 }
+*/
 
 static int  z3_heuristic_max2(z3_config_t const *config) {
     unsigned potency_max = z3_node_potency_max(config);
     return potency_max + config->M * config->N * potency_max + (1 + z3_nslots(config));
 }
 
+/*
 static int  z3_heuristic_max3(z3_config_t const *config) {
     unsigned potency_max = z3_node_potency_max(config);
     return config->M * config->N * potency_max + (1 + z3_nslots(config));
 }
+*/
 
+
+/*
 // returns heuristic value of given node
 static int  z3_heuristic(game_t const *game, node_t const node_raw) {
     z3_config_t *config = game->config;
@@ -593,13 +599,13 @@ static int  z3_heuristic(game_t const *game, node_t const node_raw) {
     unsigned potency_subsum_p2 = z3_subsum_potency_player(config, node, P_TAYLOR);
     //return potency_mega_p1 - potency_mega_p2 + potency_subsum_p1 - potency_subsum_p2;
     return potency_mega_p1 * potency_subsum_p1 - potency_mega_p2 * potency_subsum_p2;
-/*
+/ *
     ///  20170331 - deprecated  ///
     int blocks_p1 = z3_blocks_owned(config, node, P_OAKLEY);
     int blocks_p2 = z3_blocks_owned(config, node, P_TAYLOR);
     return blocks_p1 - blocks_p2;
-*/
-/*
+* /
+/ *
     ///  20170330 - deprecated  ///
     unsigned potency_max = z3_node_potency_max(config);
     // territory * maxpotency + maxpotency + nempty
@@ -610,8 +616,9 @@ static int  z3_heuristic(game_t const *game, node_t const node_raw) {
     unsigned potency_p2 = z3_mega_potency_player(config, node, P_TAYLOR);
     int value = (int)owned_p1_scaled + (int)potency_p1 - (int)owned_p2_scaled - (int)potency_p2;
     return value;
-*/
+* /
 }
+*/
 
 static int z3_heuristic2(game_t const *game, node_t const node_raw) {
     z3_config_t *config = game->config;
@@ -632,6 +639,7 @@ static int z3_heuristic2(game_t const *game, node_t const node_raw) {
     //return potency_subsum_p1 - potency_subsum_p2;
 }
 
+/*
 static int z3_heuristic3(game_t const *game, node_t const node_raw) {
     z3_config_t *config = game->config;
     z3_node_t const node = node_raw;
@@ -650,6 +658,7 @@ static int z3_heuristic3(game_t const *game, node_t const node_raw) {
     //return potency_mega_p1 - potency_mega_p2 + potency_subsum_p1 - potency_subsum_p2;
     return potency_subsum_p1 - potency_subsum_p2;
 }
+*/
 
 // prints given node to standard output
 static void z3_publish(game_t const *game, node_t const node) {
@@ -1053,12 +1062,88 @@ int *z3_iOS_Move_Human(z3_t *humanGame, int tileNumber, int playerNumber, size_t
 
 int *z3_iOS_Move_AI(z3_t *aiGame, int playerNumber, size_t *nResults) {
     z3_config_t *config = aiGame->config;
-    char const playerTile = playerNumber == 1 ? config->tile_p1 : config->tile_p2;
+    //char const playerTile = playerNumber == 1 ? config->tile_p1 : config->tile_p2;
+    z3_node_t currentState = z3_node_dup(aiGame, game_state(aiGame));
+    unsigned blockIndex = z3_node_previous(currentState);
     negamax_t *negamax = game_negamax(aiGame);
-    z3_node_t *node = negamax_move(negamax, game_state(aiGame), playerNumber == 1 ? P_OAKLEY : P_TAYLOR, game_depth(aiGame), NULL);
+    z3_node_t newState = negamax_move(negamax, currentState, playerNumber == 1 ? P_OAKLEY : P_TAYLOR, game_depth(aiGame), NULL);
+    if (!game_move(aiGame, newState))
+        return NULL;
     *nResults = 9;
-    int *results = malloc(*nResults * sizeof(int));
-    return NULL;
+    int *gameInfo = malloc(*nResults * sizeof(int));
+    char const *currentBlock = z3_node_block(config, currentState, blockIndex);
+    char const *newBlock = z3_node_block(config, newState, blockIndex);
+    unsigned subBlockIndex;
+    for (subBlockIndex = 0; subBlockIndex < config->M * config->N; ++subBlockIndex)
+        if (currentBlock[subBlockIndex] != newBlock[subBlockIndex])
+            break;
+    unsigned blockRowIndex = blockIndex / config->N;
+    unsigned blockColIndex = blockIndex % config->N;
+    unsigned subBlockRowIndex = subBlockIndex / config->N;
+    unsigned subBlockColIndex = subBlockIndex % config->N;
+    unsigned originGridRowIndex = blockRowIndex * config->M;
+    unsigned originGridColIndex = blockColIndex * config->N;
+    unsigned gridRowIndex = originGridRowIndex + subBlockRowIndex;
+    unsigned gridColIndex = originGridColIndex + subBlockColIndex;
+    unsigned gridIndex = gridRowIndex * config->N * config->N + gridColIndex;
+    gameInfo[8] = 1 + (int)gridIndex;
+    
+    gameInfo[0] = 0;
+    if (aiGame->leaf(aiGame, newState)) {
+        player_t winner = aiGame->winner(aiGame, newState);
+        switch (winner) {
+            case P_OAKLEY:
+                gameInfo[0] = 1;
+                break;
+            case P_TAYLOR:
+                gameInfo[0] = 2;
+                break;
+            case P_DAKOTA:
+                gameInfo[0] = 3;
+        }
+    }
+
+    if (gameInfo[0] && gameInfo[0] != 3) {
+        unsigned indices[2];
+        z3_block_won(config, z3_node_mega(newState), indices);
+        gameInfo[6] = 1 + indices[0];
+        gameInfo[7] = 1 + indices[1];
+    }
+
+    char *currentMega = z3_node_mega(currentState);
+    char *newMega = z3_node_mega(newState);
+    if (!memcmp(currentMega, newMega, config->M * config->N))
+        gameInfo[1] = 0;
+    else {
+        gameInfo[1] = 1 + blockIndex;
+
+        unsigned indices[2];
+        z3_block_won(config, z3_node_block(config, newState, blockIndex), indices);
+
+        unsigned startSubRowIndex = indices[0] / config->N;
+        unsigned startSubColIndex = indices[0] % config->N;
+        unsigned startGridRowIndex = originGridRowIndex + startSubRowIndex;
+        unsigned startGridColIndex = originGridColIndex + startSubColIndex;
+        unsigned startGridIndex = startGridRowIndex * config->N * config->N + startGridColIndex;
+        //unsigned startGridIndex = originGridIndex + startSubRowIndex * config->N * config->N + startSubColIndex; // this also works
+
+        unsigned endSubRowIndex = indices[1] / config->N;
+        unsigned endSubColIndex = indices[1] % config->N;
+        unsigned endGridRowIndex = originGridRowIndex + endSubRowIndex;
+        unsigned endGridColIndex = originGridColIndex + endSubColIndex;
+        unsigned endGridIndex = endGridRowIndex * config->N * config->N + endGridColIndex;
+        //unsigned endGridIndex = originGridIndex + endSubRowIndex * config->N * config->N + endSubColIndex; // this also works
+
+        gameInfo[4] = 1 + (int)startGridIndex;
+        gameInfo[5] = 1 + (int)endGridIndex;
+    }
+
+    free(currentState);
+    free(newState);
+
+    gameInfo[2] = gameInfo[1] ? playerNumber : 0;
+    gameInfo[3] = gameInfo[0] ? 0 : 1 + subBlockIndex;
+    return gameInfo;
 }
 
 

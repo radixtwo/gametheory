@@ -15,7 +15,7 @@ CFLAGS	=	-g -std=gnu11 -Og -Wall -Wextra $$etcetera
 LDFLAGS	=	
 LDLIBS	=	
 
-export etcetera	=	-Wfloat-equal -Wtype-limits -Wpointer-arith -Wlogical-op -Wshadow
+export etcetera	=	-Wfloat-equal -Wtype-limits -Wpointer-arith -Wlogical-op -Wshadow -fstack-protector-all
 
 all:: $(OEUVRE)
 
