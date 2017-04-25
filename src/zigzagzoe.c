@@ -417,9 +417,12 @@ static unsigned  z3_subsum_potency_player(z3_config_t const *config, z3_node_t c
     unsigned potency = 0;
     for (size_t b = 0; b < nblocks; ++b) {
 <<<<<<< HEAD
+<<<<<<< HEAD
         char *block = z3_node_block(config, node, b);
         char tile_player = z3_block_won(config, block, NULL);
 =======
+=======
+>>>>>>> origin/master
         char *block = z3_node_block(config, node, (unsigned)b);
         char tile_player = z3_block_won(config, block);
 >>>>>>> origin/master
