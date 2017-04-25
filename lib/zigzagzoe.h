@@ -29,9 +29,9 @@ void z3_play_ai2(z3_t *game1, z3_t *game2);
 
 // iOS app functionality
 z3_t *z3_iOS_SetupGame_Human(int M, int N, int K, int initBlock, int staleMode);
-//z3_t *z3_iOS_SetupGame_AI(int M, int N, int K, int initBlock, int stateMode, int playerAI, int difficulty);
+z3_t *z3_iOS_SetupGame_AI(int M, int N, int K, int initBlock, int staleMode, int humanPlayerNum, int difficulty);
 int *z3_iOS_Move_Human(z3_t *humanGame, int tileNumber, int playerNumber, size_t *nResults);
-//int *z3_iOS_Move_AI(int tileNumber, int playerNumber);
+int *z3_iOS_Move_AI(z3_t *aiGame, int playerNumber, size_t *nResults);
 
 
 #endif // ZIGZAGZOE_H

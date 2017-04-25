@@ -7,7 +7,7 @@
 void SetupHumanGame(int m, int n, int k, int initBoard, int staleMode);
 void EndHumanGame();
 int *HumanMove(int tileNumber, int playerNumber);
-void ReverseHumanMove();
+//void ReverseHumanMove();
 void PrintHumanGame();
 
 #endif // IOS_ZZZ_HUMAN_GAME_H

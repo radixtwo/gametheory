@@ -3,22 +3,26 @@
 #include "zigzagzoe.h"
 
 static z3_t *aiGame;
+static char const *dataDirPath;
 
-void SetupAIGame(int m, int n, int k, int initBoard, int staleMode, int playerNumber, int depth, const char *dataPath) {
+void SetupAIGame(int m, int n, int k, int initBoard, int staleMode, int humanPlayerNum, int difficulty, char const *dataDirPath) {
     //aiGame = z3_iOS_SetupGame_AI(m, n, k, initBoard, staleMode);
 }
 
 void EndAIGame() {
+    // save game data
     z3_free(aiGame);
 }
 
-int *AIMove(int tileNumber, int playerNumber) {
-    //size_t nResults;
-    //return z3_iOS_Move_AI(aiGame, tileNumber, playerNumber, &nResults);
+int *AIHumanMove(int tileNumber, int playerNumber) {
+    size_t nResults;
+    return z3_iOS_Move_Human(aiGame, tileNumber, playerNumber, &nResults);
 }
 
-void ReverseAIMove(int nRewind) {
-    //game_rewind(aiGame, nRewind);
+int *AIMove(int playerNumber) {
+    size_t nResults;
+    return z3_iOS_Move_AI(aiGame, playerNumber, &nResults);
 }
+
 
 

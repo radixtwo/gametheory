@@ -56,6 +56,10 @@ _____________________
 #define INIT_DEPTH_AI   6
 #define INIT_STALE      Z3_WIN
 
+#define IOS_DEPTH_EASY    4
+#define IOS_DEPTH_MEDIUM  6
+#define IOS_DEPTH_HARD    8
+
 typedef struct _z3_config_t {
     unsigned M;
     unsigned N;
@@ -898,13 +902,34 @@ z3_t *z3_iOS_SetupGame_Human(int M, int N, int K, int initBlock, int staleMode) 
                      INIT_DEPTH_AI, false, false);
 }
 
+z3_t *z3_iOS_SetupGame_AI(int M, int N, int K, int initBlock, int staleMode, int humanPlayerNum, int difficulty) {
+    z3_stale_t stale = staleMode == 1 ? Z3_WIN : staleMode == 2 ? Z3_LOSS : Z3_DRAW;
+    unsigned depth;
+    switch (difficulty) {
+        case 1:
+            depth = IOS_DEPTH_EASY;
+            break;
+        case 2:
+            depth = IOS_DEPTH_MEDIUM;
+            break;
+        case 3:
+            depth = IOS_DEPTH_HARD;
+            break;
+        default:
+            depth = IOS_DEPTH_EASY;
+    }
+    return z3_init_w(M, N, K, initBlock - 1, stale, 
+                     INIT_TILE_P1, INIT_TILE_P2, INIT_TILE_NA, INIT_TILE_CLOG,
+                     depth, humanPlayerNum != 1, humanPlayerNum != 2);
+}
+
 //z3_t *z3_iOS_SetupGame_AI(int M, int N, int K, int initBlock, int stateMode, int playerAI, int difficulty);
 
 int *z3_iOS_Move_Human(z3_t *humanGame, int tileNumber, int playerNumber, size_t *nResults) {
     //printf("reached z3_iOS_Move_Human\n");
     z3_config_t *config = humanGame->config;
     --tileNumber;
-    const char playerTile = playerNumber == 1 ? config->tile_p1 : config->tile_p2;
+    char const playerTile = playerNumber == 1 ? config->tile_p1 : config->tile_p2;
 
     int blockRowIndex = (tileNumber / (config->N * config->N)) / config->M;
     int blockColumnIndex = (tileNumber % (config->N * config->N)) / config->N;
@@ -963,7 +988,7 @@ int *z3_iOS_Move_Human(z3_t *humanGame, int tileNumber, int playerNumber, size_t
     free(options);
 
     *nResults = 8;
-    int *gameInfo = malloc(*nResults);
+    int *gameInfo = malloc(*nResults * sizeof(int));
     gameInfo[0] = 0;
     if (humanGame->leaf(humanGame, newState)) {
         player_t winner = humanGame->winner(humanGame, newState);
@@ -1026,8 +1051,15 @@ int *z3_iOS_Move_Human(z3_t *humanGame, int tileNumber, int playerNumber, size_t
     return gameInfo;
 }
 
-//int *z3_iOS_Move_AI(int tileNumber, int playerNumber);
-
+int *z3_iOS_Move_AI(z3_t *aiGame, int playerNumber, size_t *nResults) {
+    z3_config_t *config = aiGame->config;
+    char const playerTile = playerNumber == 1 ? config->tile_p1 : config->tile_p2;
+    negamax_t *negamax = game_negamax(aiGame);
+    z3_node_t *node = negamax_move(negamax, game_state(aiGame), playerNumber == 1 ? P_OAKLEY : P_TAYLOR, game_depth(aiGame), NULL);
+    *nResults = 9;
+    int *results = malloc(*nResults * sizeof(int));
+    return NULL;
+}
 
 
 

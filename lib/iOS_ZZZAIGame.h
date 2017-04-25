@@ -4,10 +4,11 @@
 
 #include <stddef.h>
 
-void SetupAIGame(int m, int n, int k, int initBoard, int staleMode, int playerNumber, int depth, const char *dataPath);
+void SetupAIGame(int m, int n, int k, int initBoard, int staleMode, int humanPlayerNum, int difficulty, char const *dataDirPath);
 void EndAIGame();
-int *AIMove(int tileNumber, int playerNumber);
-void ReverseAIMove();
+int *AIHumanMove(int tileNumber, int playerNumber);
+int *AIMove(int playerNumber);
+//void ReverseAIMove();
 //void PrintAIGame();
 
 #endif // IOS_ZZZ_AI_GAME_H
