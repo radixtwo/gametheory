@@ -998,7 +998,9 @@ int *z3_iOS_Move_Human(z3_t *humanGame, int tileNumber, int playerNumber, size_t
 
     *nResults = 8;
     int *gameInfo = malloc(*nResults * sizeof(int));
-    gameInfo[0] = 0;
+	for (size_t i = 0; i < *nResults; i++)
+		gameInfo[i] = 0;
+	
     if (humanGame->leaf(humanGame, newState)) {
         player_t winner = humanGame->winner(humanGame, newState);
         switch (winner) {
@@ -1071,6 +1073,9 @@ int *z3_iOS_Move_AI(z3_t *aiGame, int playerNumber, size_t *nResults) {
         return NULL;
     *nResults = 9;
     int *gameInfo = malloc(*nResults * sizeof(int));
+	for (size_t i = 0; i < *nResults; i++)
+		gameInfo[i] = 0;
+	
     char const *currentBlock = z3_node_block(config, currentState, blockIndex);
     char const *newBlock = z3_node_block(config, newState, blockIndex);
     unsigned subBlockIndex;
