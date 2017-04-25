@@ -4,7 +4,7 @@
 
 #include <stddef.h>
 
-void SetupAIGame(int m, int n, int k, int initBoard, int staleMode, int humanPlayerNum, int difficulty, char const *dataDirectoryPath);
+void SetupAIGame(int m, int n, int k, int initBoard, int staleMode, int humanPlayerNum, int difficulty, char const *dataDirPath);
 void EndAIGame();
 int *AIHumanMove(int tileNumber, int playerNumber);
 int *AIMove(int playerNumber);
