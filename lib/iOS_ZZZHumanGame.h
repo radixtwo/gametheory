@@ -2,7 +2,7 @@
 #ifndef IOS_ZZZ_HUMAN_GAME_H
 #define IOS_ZZZ_HUMAN_GAME_H
 
-#include <stddef.h>
+//#include <stddef.h>
 
 void SetupHumanGame(int m, int n, int k, int initBoard, int staleMode);
 void EndHumanGame();

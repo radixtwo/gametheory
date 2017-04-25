@@ -2,7 +2,7 @@
 #ifndef IOS_ZZZ_AI_GAME_H
 #define IOS_ZZZ_AI_GAME_H
 
-#include <stddef.h>
+//#include <stddef.h>
 
 void SetupAIGame(int m, int n, int k, int initBoard, int staleMode, int humanPlayerNum, int difficulty, char const *dataDirPath);
 void EndAIGame();

@@ -38,7 +38,7 @@ _____________________
 #include "negamax.h"
 #include "nkrand.h"
 #include "ansicolor.h"
-#include <unistd.h>
+//#include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
