@@ -13,6 +13,8 @@
 
 negamax_t *negamax_init(game_t const *game);
 void negamax_free(negamax_t *negamax);
+negamax_t *negamax_load(game_t const *game, char const *filename);
+bool negamax_save(negamax_t const *negamax, char const *filename);
 
 size_t negamax_nbytes(negamax_t const *negamax);
 size_t negamax_ttable_size(negamax_t const *negamax);

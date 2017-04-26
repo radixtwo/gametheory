@@ -95,6 +95,14 @@ game_t *game_init(
 // destructor
 void game_free(game_t *game);
 
+game_t *game_negamax_load(node_t const root, size_t const width, int const heuristic_max,
+                  unsigned const depth, bool player1_ai, bool player2_ai,
+                  leaf_t const leaf, spawn_t const spawn, winner_t const winner,
+                  heuristic_t const heuristic, publish_t const publish,
+                  clone_t const clone, stratify_t const stratify,
+                  char const *filename);
+
+bool game_negamax_save(game_t const *game, char const *filename);
 
 //-----------//
 //  getters  //

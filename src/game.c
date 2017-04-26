@@ -207,6 +207,45 @@ void game_free(game_t *game) {
     free(game);
 }
 
+game_t *game_negamax_load(node_t const root, size_t const width, int const heuristic_max,
+                  unsigned const depth, bool player1_ai, bool player2_ai,
+                  leaf_t const leaf, spawn_t const spawn, winner_t const winner,
+                  heuristic_t const heuristic, publish_t const publish,
+                  clone_t const clone, stratify_t const stratify,
+                  char const *filename) {
+    data_t data_raw = {.root = node_dup(root, width), .width = width, .heuristic_max = heuristic_max,
+                       .negamax = NULL, .depth = depth, .player1_ai = player1_ai, .player2_ai = player2_ai};
+    data_t *data = malloc(sizeof(data_t));
+    memcpy(data, &data_raw, sizeof(data_t));
+
+    data->player = P_OAKLEY;
+    data->state = node_dup(root, width);
+    data->eval = 0;
+
+    data->moves = vector_init_w(sizeof(node_t), MOVES_CAPACITY, MOVES_MULTIPLIER, MOVES_INCREMENT, &moves_trash);
+    vector_append(data->moves, &data->state);
+    data->score[0] = 0;
+    data->score[1] = 0;
+
+    game_t *game = malloc(sizeof(game_t));
+    game->leaf = leaf;
+    game->spawn = spawn;
+    game->winner = winner;
+    game->heuristic = heuristic;
+    game->publish = publish;
+    game->clone = clone;
+    game->stratify = stratify;
+    game->data = data;
+    game->config = NULL;
+
+    data->negamax = negamax_load(game, filename);
+
+    return game;
+}
+
+bool game_negamax_save(game_t const *game, char const *filename) {
+    return negamax_save(game->data->negamax, filename);
+}
 
 //-----------//
 //  getters  //

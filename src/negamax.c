@@ -130,6 +130,17 @@ void negamax_free(negamax_t *negamax) {
     free(negamax);
 }
 
+negamax_t *negamax_load(game_t const *game, char const *filename) {
+    negamax_t *negamax = malloc(sizeof(negamax_t));
+    negamax->game = game;
+    negamax->ttable = hashmap_load(filename);
+    return negamax;
+}
+
+bool negamax_save(negamax_t const *negamax, char const *filename) {
+    return hashmap_save(negamax->ttable, filename);
+}
+
 size_t negamax_ttable_size(negamax_t const *negamax) {
     return hashmap_size(negamax->ttable);
 }

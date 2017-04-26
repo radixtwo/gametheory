@@ -1,10 +1,13 @@
 
 #include "iOS_ZZZHumanGame.h"
 #include "zigzagzoe.h"
+#include <stdlib.h>
+#include <time.h>
 
 static z3_t *humanGame;
 
 void SetupHumanGame(int m, int n, int k, int initBoard, int staleMode) {
+    srand(time(NULL));
     humanGame = z3_iOS_SetupGame_Human(m, n, k, initBoard, staleMode);
 }
 

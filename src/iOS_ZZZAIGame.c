@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #define FILENAME_LENGTH_MAX 63
 
@@ -27,15 +28,14 @@ static void initFilePath(int m, int n, int k, int staleMode, int difficulty, cha
 }
 
 void SetupAIGame(int m, int n, int k, int initBoard, int staleMode, int humanPlayerNum, int difficulty, char const *dataDirPath) {
+    srand(time(NULL));
     initFilePath(m, n, k, staleMode, difficulty, dataDirPath);
-    aiGame = z3_iOS_SetupGame_AI(m, n, k, initBoard, staleMode, humanPlayerNum, difficulty);
-    // TODO: need to read from dataFilePath
+    aiGame = z3_iOS_SetupGame_AI(m, n, k, initBoard, staleMode, humanPlayerNum, difficulty, dataFilePath);
 }
 
 void EndAIGame() {
-    // TODO: save game data
+    z3_iOS_EndGame_AI(aiGame, dataFilePath);
     free(dataFilePath);
-    z3_free(aiGame);
 }
 
 int *AIHumanMove(int tileNumber, int playerNumber) {

@@ -803,6 +803,42 @@ z3_t  *z3_init_w(unsigned M, unsigned N, unsigned K, uint8_t block_init, z3_stal
     return game;
 }
 
+// returns 'z3_t *' game initialized with passed values
+z3_t  *z3_negamax_load_w(unsigned M, unsigned N, unsigned K, uint8_t block_init, z3_stale_t mate,
+                 char tile_p1, char tile_p2, char tile_na, char tile_clog,
+                 unsigned depth, bool player1_ai, bool player2_ai,
+                 char const *negamax_filename) {
+    z3_config_t config_raw = {.M = M, .N = N, .K = K,
+                              .mate = mate,
+                              .tile_p1 = tile_p1,
+                              .tile_p2 = tile_p2,
+                              .tile_na = tile_na,
+                              .tile_clog = tile_clog
+                              };
+    z3_config_t *config = malloc(sizeof(z3_config_t));
+    memcpy(config, &config_raw, sizeof(z3_config_t));
+    z3_node_t root = z3_node_root(config, block_init);
+    z3_t *game = game_negamax_load(
+                     root,
+                     z3_node_width(config),
+                     z3_heuristic_max2(config),
+                     depth,
+                     player1_ai,
+                     player2_ai,
+                     &z3_leaf,
+                     &z3_spawn,
+                     &z3_winner,
+                     &z3_heuristic2,
+                     &z3_publish,
+                     &z3_clone,
+                     NULL, // &z3_stratify
+                     negamax_filename
+                 );
+    free(root);
+    game->config = config;
+    return game;
+}
+
 z3_t  *z3_init_h2_w(unsigned M, unsigned N, unsigned K, uint8_t block_init, z3_stale_t mate,
                  char tile_p1, char tile_p2, char tile_na, char tile_clog,
                  unsigned depth, bool player1_ai, bool player2_ai) {
@@ -911,7 +947,7 @@ z3_t *z3_iOS_SetupGame_Human(int M, int N, int K, int initBlock, int staleMode) 
                      INIT_DEPTH_AI, false, false);
 }
 
-z3_t *z3_iOS_SetupGame_AI(int M, int N, int K, int initBlock, int staleMode, int humanPlayerNum, int difficulty) {
+z3_t *z3_iOS_SetupGame_AI(int M, int N, int K, int initBlock, int staleMode, int humanPlayerNum, int difficulty, char const *dataFilePath) {
     z3_stale_t stale = staleMode == 1 ? Z3_WIN : staleMode == 2 ? Z3_LOSS : Z3_DRAW;
     unsigned depth;
     switch (difficulty) {
@@ -927,12 +963,23 @@ z3_t *z3_iOS_SetupGame_AI(int M, int N, int K, int initBlock, int staleMode, int
         default:
             depth = IOS_DEPTH_EASY;
     }
-    return z3_init_w(M, N, K, initBlock - 1, stale, 
-                     INIT_TILE_P1, INIT_TILE_P2, INIT_TILE_NA, INIT_TILE_CLOG,
-                     depth, humanPlayerNum != 1, humanPlayerNum != 2);
+    FILE *fh = fopen(dataFilePath, "r");
+    if (!fh)
+        return z3_init_w(M, N, K, initBlock - 1, stale, 
+                         INIT_TILE_P1, INIT_TILE_P2, INIT_TILE_NA, INIT_TILE_CLOG,
+                         depth, humanPlayerNum != 1, humanPlayerNum != 2);
+    fclose(fh);
+    return z3_negamax_load_w(M, N, K, initBlock - 1, stale, 
+                             INIT_TILE_P1, INIT_TILE_P2, INIT_TILE_NA, INIT_TILE_CLOG,
+                             depth, humanPlayerNum != 1, humanPlayerNum != 2,
+                             dataFilePath);
 }
 
-//z3_t *z3_iOS_SetupGame_AI(int M, int N, int K, int initBlock, int stateMode, int playerAI, int difficulty);
+void z3_iOS_EndGame_AI(z3_t *aiGame, char const *dataFilePath) {
+    if (dataFilePath)
+        game_negamax_save(aiGame, dataFilePath); // returns true on success...
+    z3_free(aiGame);
+}
 
 int *z3_iOS_Move_Human(z3_t *humanGame, int tileNumber, int playerNumber, size_t *nResults) {
     //printf("reached z3_iOS_Move_Human\n");
