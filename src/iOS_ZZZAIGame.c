@@ -19,12 +19,15 @@ static char *genFilename(int m, int n, int k, int staleMode, int difficulty) {
 }
 
 static void initFilePath(int m, int n, int k, int staleMode, int difficulty, char const *dataDirPath) {
-    char *filename = genFilename(m, n, k, staleMode, difficulty);
-    char *path = malloc(1 + strlen(dataDirPath) + strlen(filename));
-    strcpy(path, dataDirPath);
-    strcpy(path + strlen(dataDirPath), filename);
-    free(filename);
-    dataFilePath = path;
+    if (dataDirPath) {
+        char *filename = genFilename(m, n, k, staleMode, difficulty);
+        char *path = malloc(1 + strlen(dataDirPath) + strlen(filename));
+        strcpy(path, dataDirPath);
+        strcpy(path + strlen(dataDirPath), filename);
+        free(filename);
+        dataFilePath = path;
+    } else
+        dataFilePath = NULL;
 }
 
 void SetupAIGame(int m, int n, int k, int initBoard, int staleMode, int humanPlayerNum, int difficulty, char const *dataDirPath) {
@@ -35,7 +38,8 @@ void SetupAIGame(int m, int n, int k, int initBoard, int staleMode, int humanPla
 
 void EndAIGame() {
     z3_iOS_EndGame_AI(aiGame, dataFilePath);
-    free(dataFilePath);
+    if (dataFilePath)
+        free(dataFilePath);
 }
 
 int *AIHumanMove(int tileNumber, int playerNumber) {
