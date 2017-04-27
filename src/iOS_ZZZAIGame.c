@@ -31,7 +31,7 @@ static void initFilePath(int m, int n, int k, int staleMode, int difficulty, cha
 }
 
 void SetupAIGame(int m, int n, int k, int initBoard, int staleMode, int humanPlayerNum, int difficulty, char const *dataDirPath) {
-    srand(time(NULL));
+    srand((unsigned)time(NULL));
     initFilePath(m, n, k, staleMode, difficulty, dataDirPath);
     aiGame = z3_iOS_SetupGame_AI(m, n, k, initBoard, staleMode, humanPlayerNum, difficulty, dataFilePath);
 }
