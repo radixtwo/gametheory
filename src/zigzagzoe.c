@@ -1062,9 +1062,11 @@ int *z3_iOS_Move_Human(z3_t *humanGame, int tileNumber, int playerNumber, size_t
 
     if (gameInfo[0] && gameInfo[0] != 3) {
         unsigned indices[2];
-        z3_block_won(config, z3_node_mega(newState), indices);
-        gameInfo[6] = 1 + indices[0];
-        gameInfo[7] = 1 + indices[1];
+        char tile = z3_block_won(config, z3_node_mega(newState), indices);
+        if (tile == playerTile) {
+            gameInfo[6] = 1 + indices[0];
+            gameInfo[7] = 1 + indices[1];
+        }
     }
 
     char *currentMega = z3_node_mega(currentState);
@@ -1116,7 +1118,7 @@ int *z3_iOS_Move_Human(z3_t *humanGame, int tileNumber, int playerNumber, size_t
 
 int *z3_iOS_Move_AI(z3_t *aiGame, int playerNumber, size_t *nResults) {
     z3_config_t *config = aiGame->config;
-    //char const playerTile = playerNumber == 1 ? config->tile_p1 : config->tile_p2;
+    char const playerTile = playerNumber == 1 ? config->tile_p1 : config->tile_p2;
     z3_node_t currentState = z3_node_dup(aiGame, game_state(aiGame));
     unsigned blockIndex = z3_node_previous(currentState);
     negamax_t *negamax = game_negamax(aiGame);
@@ -1160,9 +1162,11 @@ int *z3_iOS_Move_AI(z3_t *aiGame, int playerNumber, size_t *nResults) {
 
     if (gameInfo[0] && gameInfo[0] != 3) {
         unsigned indices[2];
-        z3_block_won(config, z3_node_mega(newState), indices);
-        gameInfo[6] = 1 + indices[0];
-        gameInfo[7] = 1 + indices[1];
+        char tile = z3_block_won(config, z3_node_mega(newState), indices);
+        if (tile == playerTile) {
+            gameInfo[6] = 1 + indices[0];
+            gameInfo[7] = 1 + indices[1];
+        }
     }
 
     char *currentMega = z3_node_mega(currentState);
