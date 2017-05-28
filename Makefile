@@ -1,6 +1,6 @@
 
 SRCDIR	=	src
-LIBDIR	=	lib
+LIBDIR	=	include
 OBJDIR	=	obj
 BINDIR	=	bin
 

@@ -56,9 +56,10 @@ _____________________
 #define INIT_DEPTH_AI   6
 #define INIT_STALE      Z3_WIN
 
-#define IOS_DEPTH_EASY    4
-#define IOS_DEPTH_MEDIUM  6
-#define IOS_DEPTH_HARD    8
+#define IOS_DEPTH_EASY    2
+#define IOS_DEPTH_MEDIUM  4
+#define IOS_DEPTH_HARD    6
+#define IOS_DEPTH_EXTREME 8
 
 typedef struct _z3_config_t {
     unsigned M;
@@ -951,17 +952,10 @@ z3_t *z3_iOS_SetupGame_AI(int M, int N, int K, int initBlock, int staleMode, int
     z3_stale_t stale = staleMode == 1 ? Z3_WIN : staleMode == 2 ? Z3_LOSS : Z3_DRAW;
     unsigned depth;
     switch (difficulty) {
-        case 1:
-            depth = IOS_DEPTH_EASY;
-            break;
-        case 2:
-            depth = IOS_DEPTH_MEDIUM;
-            break;
-        case 3:
-            depth = IOS_DEPTH_HARD;
-            break;
-        default:
-            depth = IOS_DEPTH_EASY;
+        case 2:   depth = IOS_DEPTH_MEDIUM;   break;
+        case 3:   depth = IOS_DEPTH_HARD;     break;
+        case 4:   depth = IOS_DEPTH_EXTREME;  break;
+        default:  depth = IOS_DEPTH_EASY;
     }
     FILE *fh = fopen(dataFilePath, "r");
     if (!fh)
