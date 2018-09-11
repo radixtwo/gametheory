@@ -3,6 +3,7 @@
 #include "sim.h"
 #include "game.h"
 #include "ansicolor.h"
+#include "assert.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -10,7 +11,7 @@
 #define XORSWP(x,y) do { x ^= y; y ^= x; x ^= y; } while (0)
 
 #define DFLT_NVERTICES 6
-#define DFLT_DEPTH 10
+#define DFLT_DEPTH 16 //4
 
 // references by 'config' in 'game.h'
 typedef uint8_t sim_nvertex_t;
@@ -38,6 +39,19 @@ static inline uint8_t edge_index(uint8_t row, uint8_t column) {
     return choose2(m) + n;
 }
 
+/*
+static inline void edge_rc(uint8_t nvertex, uint8_t edge_i, uint8_t *row, uint8_t *column) {
+    for (uint8_t r = 0; r < nvertex; ++r) {
+        for (uint8_t c = 0; c < nvertex; ++c) {
+            if (edge_i == edge_index(r, c)) {
+                if (row) *row = r;
+                if (column) *column = c;
+            }
+        }
+    }
+}
+*/
+
 static inline size_t sim_graph_width(sim_nvertex_t *nvx) {
     return choose2(*nvx);
 }
@@ -47,7 +61,8 @@ static inline uint8_t sim_graph_nedges_max(sim_nvertex_t *nvx) {
 }
 
 static inline int8_t sim_graph_edge_value(sim_nvertex_t *nvx, sim_graph_t node, uint8_t row, uint8_t column) {
-    //add verification
+    //printf("nvx:%u, row:%u, col:%u\n", (unsigned)*(uint8_t *)nvx, (unsigned)row, (unsigned)column);
+    assert(row < *nvx && column < *nvx && row != column);
     return node[edge_index(row, column)];
 }
 
@@ -79,15 +94,98 @@ static inline sim_graph_t sim_graph_root(sim_nvertex_t *nvx) {
 
 // helper functions //
 
-static int8_t triangle_verify(sim_nvertex_t *nvx, sim_graph_t node, uint8_t *vx) {
-    int8_t e01 = sim_graph_edge_value(nvx, node, vx[0], vx[1]);
-    int8_t e02 = sim_graph_edge_value(nvx, node, vx[0], vx[2]);
-    int8_t e12 = sim_graph_edge_value(nvx, node, vx[1], vx[2]);
+/*
+// attempt to merge algorithm with below triangle_search algorithm for generalization
+static int8_t verify_complete_graph(sim_nvertex_t *nvx, sim_graph_t node,
+  uint8_t *choice, uint8_t *edge, int8_t loser, bool set,
+  uint8_t const left, uint8_t const right, uint8_t index) {
+    int8_t edge_loser;
+    if (index == 2) {
+        edge_loser = sim_graph_edge_value(nvx, node, edge[0], edge[1]);
+        if (!set) {
+            set = true;
+            loser = edge_loser;
+        } else if (edge_loser != loser)
+            loser = 0;
+        return loser;
+    }
+    for (int i = left; i <=right && right - i + 1 >= 2 - index; ++i) {
+        edge[index] = choice[i];
+        edge_loser = verify_complete_graph(nvx, node, choice, edge, loser, set, i + 1, right, index + 1);
+        if (!edge_loser) return 0;
+    }
+    return edge_loser;
+}
+*/
+
+static int8_t triangle_verify(sim_nvertex_t *nvx, sim_graph_t node, uint8_t *choice) {
+    int8_t e01 = sim_graph_edge_value(nvx, node, choice[0], choice[1]);
+    int8_t e02 = sim_graph_edge_value(nvx, node, choice[0], choice[2]);
+    int8_t e12 = sim_graph_edge_value(nvx, node, choice[1], choice[2]);
     if (e01 && e02 && e12 && e01 == e02 && e01 == e12 && e02 == e12)
         return e01;
     return 0;
 }
 
+static int8_t triangle_search(sim_nvertex_t *nvx, sim_graph_t node, uint8_t *vx, uint8_t *choice, uint8_t const left, uint8_t const right, uint8_t index, uint8_t k) {
+    int8_t loser;
+    if (index == k) {
+/*
+        for (uint8_t c = 0; c < k; ++c)
+            printf("[%u]", (unsigned)choice[c]);
+        printf("\n");
+*/
+        loser = triangle_verify(nvx, node, choice);
+        return loser;
+    }
+    for (int i = left; i <= right && right - i + 1 >= k - index; ++i) {
+        choice[index] = vx[i];
+        loser = triangle_search(nvx, node, vx, choice, i + 1, right, index + 1, k);
+        if (loser) return loser;
+    }
+    return 0;
+}
+
+static sim_graph_t iso_create(sim_nvertex_t *nvx, sim_graph_t node, uint8_t *vx) {
+    size_t width = sim_graph_nedges_max(nvx) * sizeof(uint8_t);
+    sim_graph_t iso = malloc(width);
+    for (uint8_t r = 0; r < *nvx; ++r)
+      for (uint8_t c = r + 1; c < *nvx; ++c)
+        iso[edge_index(vx[r], vx[c])] = node[edge_index(r, c)];
+    return iso;
+}
+
+static void iso_enum(sim_nvertex_t *nvx, sim_graph_t node, sim_graph_t **isomorphs, size_t *nisomorphs, uint8_t *vx, uint8_t const left, uint8_t const right) {
+    if (left == right) {
+      bool new_iso = true;
+      //size_t width = sim_graph_nedges_max(nvx) * sizeof(uint8_t);
+      size_t width = sim_graph_nedges_max(nvx);
+      sim_graph_t iso = iso_create(nvx, node, vx);
+      for (size_t i = 0; i < *nisomorphs; ++i) {
+        if (!memcmp(iso, (*isomorphs)[i], width)) {
+          new_iso = false;
+          break;
+        }
+      }
+      if (new_iso) {
+        sim_graph_t *isomorphs_copy = NULL;
+        while (!(isomorphs_copy = realloc(*isomorphs, (*nisomorphs + 1) * sizeof(sim_graph_t))));
+        *isomorphs = isomorphs_copy;
+        (*isomorphs)[(*nisomorphs)++] = iso;
+      } else
+        free(iso);
+      return;
+    }
+    for (uint8_t n = left; n <= right; ++n) {
+        if (left != n)
+            XORSWP(vx[left], vx[n]);
+        iso_enum(nvx, node, isomorphs, nisomorphs, vx, left + 1, right);
+        if (left != n)
+            XORSWP(vx[left], vx[n]);
+    }
+}
+
+/*
 static int8_t triangle_search(sim_nvertex_t *nvx, sim_graph_t node, uint8_t *vx, uint8_t const left, uint8_t const right) {
     if (left == right) {
         int8_t loser = triangle_verify(nvx, node, vx);
@@ -105,15 +203,21 @@ static int8_t triangle_search(sim_nvertex_t *nvx, sim_graph_t node, uint8_t *vx,
     }
     return 0;
 }
+*/
 
 static player_t sim_graph_winner(sim_nvertex_t *nvx, sim_graph_t node) {
+    //printf("sim_graph_winner\n");
     uint8_t nedges_max = sim_graph_nedges_max(nvx);
     uint8_t *vx = malloc(nedges_max * sizeof(uint8_t));
     for (size_t edge = 0; edge < nedges_max; ++edge)
         vx[edge] = edge;
-    int8_t loser = triangle_search(nvx, node, vx, 0, *nvx - 1);
+    uint8_t *choice = malloc(3 * sizeof(uint8_t));
+    int8_t loser = triangle_search(nvx, node, vx, choice, 0, *nvx - 1, 0, 3);
+    //printf("sim_graph_winner: finished triangle_search\n");
     free(vx);
-    return loser == -1 ? OAKLEY : loser ? TAYLOR : DAKOTA;
+    free(choice);
+    //printf("sim_graph_winner returning\n\n");
+    return loser == -1 ? P_OAKLEY : loser ? P_TAYLOR : P_DAKOTA;
 }
 
 
@@ -123,7 +227,7 @@ static player_t sim_graph_winner(sim_nvertex_t *nvx, sim_graph_t node) {
 static bool sim_leaf(game_t const *game, node_t const node) {
     sim_nvertex_t *nvx = game->config;
     uint8_t nedges_max = sim_graph_nedges_max(nvx);
-    if (sim_graph_winner(nvx, node) != DAKOTA)
+    if (sim_graph_winner(nvx, node) != P_DAKOTA)
         return true;
     for (size_t edge = 0; edge < nedges_max; ++edge)
         if (((sim_graph_t)node)[edge] == 0)
@@ -132,6 +236,7 @@ static bool sim_leaf(game_t const *game, node_t const node) {
 }
 
 static node_t *sim_spawn(game_t const *game, node_t const node, size_t * const noffspring) {
+    //printf("sim_spawn\n");
     sim_graph_t graph = node;
     size_t width = sim_graph_width(game->config);
     uint8_t nedges_max = sim_graph_nedges_max(game->config);
@@ -148,6 +253,7 @@ static node_t *sim_spawn(game_t const *game, node_t const node, size_t * const n
     }
     node_t *offspring = malloc(*noffspring * sizeof(node_t));
     memcpy(offspring, offspring_buf, *noffspring * sizeof(node_t));
+    //printf("sim_spawn returning; *noffspring = %u\n\n", (unsigned)*noffspring);
     return offspring;
 }
 
@@ -157,7 +263,8 @@ static player_t sim_winner(game_t const *game, node_t const node) {
 
 static int sim_heuristic(game_t const *game, node_t const node) {
     player_t winner = sim_graph_winner(game->config, (sim_graph_t)node);
-    return winner == OAKLEY ? 1 : winner ? -1 : 0;
+    int weight = sim_graph_nempty(game->config, (sim_graph_t)node);
+    return winner == P_OAKLEY ? weight : winner ? -1 * weight : 0;
 }
 
 static void sim_publish(game_t const *game, node_t const node) {
@@ -181,6 +288,20 @@ static void sim_publish(game_t const *game, node_t const node) {
     }
 }
 
+// 20170830 NOTE: unused function (works, but costs significantly more practical time;
+//    and uses significantly less practical space after experimenting. not sure if
+//    results would match theoretical bounds.)
+static node_t *sim_clone(game_t const *game, node_t const node, size_t *nclones) {
+    sim_nvertex_t *nvx = game->config;
+    *nclones = 0;
+    sim_graph_t *clones = NULL;
+    uint8_t *vx = malloc(*nvx);
+    for (uint8_t i = 0; i < *nvx; ++i)
+        vx[i] = i;
+    iso_enum(nvx, (sim_graph_t)node, &clones, nclones, vx, 0, *nvx - 1);
+    free(vx);
+    return (node_t *)clones;
+}
 
 // public functions
 
@@ -196,7 +317,7 @@ sim_t *sim_init_w(uint8_t nvertices, bool player1_ai, bool player2_ai, uint8_t d
     sim_t *game = game_init(
                       sim_graph_root(nvx),
                       sim_graph_width(nvx),
-                      1,
+                      choose2(*nvx),
                       depth,
                       player1_ai,
                       player2_ai,
@@ -205,7 +326,7 @@ sim_t *sim_init_w(uint8_t nvertices, bool player1_ai, bool player2_ai, uint8_t d
                       &sim_winner,
                       &sim_heuristic,
                       &sim_publish,
-                      NULL, //clone
+                      NULL, //&sim_clone,
                       NULL //stratify
                   );
     game->config = nvx;

@@ -119,7 +119,8 @@ static int negamax_search(negamax_t *negamax, node_t node, player_t player, unsi
 negamax_t *negamax_init(game_t const *game) {
     negamax_t *negamax = malloc(sizeof(negamax_t));
     negamax->game = game;
-    negamax->ttable = hashmap_init_w(game_width(game), sizeof(memo_t), 16, 8, 2, 2, ((uint64_t)rand() << 32) | rand(), NULL);
+    //negamax->ttable = hashmap_init_w(game_width(game), sizeof(memo_t), 16, 8, 2, 2, ((uint64_t)rand() << 32) | rand(), NULL);
+    negamax->ttable = hashmap_init_w(game_width(game), sizeof(memo_t), 16, 8, 2, 2, getRandomUInt64(), NULL);
     return negamax;
 }
 
@@ -154,8 +155,11 @@ int negamax_eval(negamax_t *negamax, node_t node, player_t player, unsigned dept
 }
 
 node_t negamax_move(negamax_t *negamax, node_t node, player_t player, unsigned depth, int * const eval) {
+    //printf("negamax_move\n");
     game_t const *game = negamax->game;
-    int alpha = -1 * game_heuristic_max(game), beta = game_heuristic_max(game), value_best = alpha;
+    int alpha = -1 * game_heuristic_max(game);
+    int beta = game_heuristic_max(game);
+    int value_best = alpha;
     size_t noptions, nbest = 1;
     node_t *options = game->spawn(game, node, &noptions);
     if (!eval && noptions == 1) {
@@ -180,6 +184,7 @@ node_t negamax_move(negamax_t *negamax, node_t node, player_t player, unsigned d
         game->stratify(game, best, nbest);
     node_t move = best[0];
     node_free_except(move, options, noptions);
+    //printf("negamax_move returning\n\n");
     return move;
 }
 

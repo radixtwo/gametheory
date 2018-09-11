@@ -396,7 +396,7 @@ void game_publish_state(game_t *game) {
 
 
 bool game_move(game_t *game, node_t node) {
-    //printf("reached game_move\n");
+    //printf("game_move\n");
     size_t noptions;
     node_t *options = game->spawn(game, game_state(game), &noptions);
     bool legal = false;
@@ -413,11 +413,12 @@ bool game_move(game_t *game, node_t node) {
         vector_append(game->data->moves, &copy);
         return true;
     }
+    //printf("game_move returning\n\n");
     return false;
 }
 
 bool game_advance(game_t *game) {
-    //printf("reached game_advance\n");
+    //printf("game_advance\n");
     data_t *data = game->data;
     player_t player = game_player(game);
     node_t move = NULL;
@@ -426,11 +427,12 @@ bool game_advance(game_t *game) {
     else
         move = human_move(game);
     if (move) {
+        //printf("game_advance: starting game_move\n");
         game_move(game, move);
-        //printf("game: moved game\n");
         free(move);
         return true;
     }
+    //printf("game_advance returning\n\n");
     return false;
 }
 
@@ -485,14 +487,17 @@ bool game_prompt_rematch() {
 }
 
 void game_play(game_t *game) {
+    //printf("game_play\n");
     data_t *data = game->data;
     do {
+        //printf("game_play: new game starting\n");
         int move_count = 0;
         while (!game->leaf(game, game_state(game))) {
+            //printf("game_play: new ply starting\n");
             publish_state(game);
             //printf("start of loop %d\n", move_count);
             bool moved = game_advance(game);
-            //printf("game: advanced game\n");
+            //printf("game_play: game_advance finished\n");
             //publish_state(game);
             if (!moved)
                 continue;
@@ -518,6 +523,7 @@ void game_play(game_t *game) {
         printf("\n");
         game_reset(game);
     } while (game_prompt_rematch());;
+    //printf("game_play returning\n\n");
 }
 
 
