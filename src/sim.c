@@ -208,9 +208,9 @@ static int8_t triangle_search(sim_nvertex_t *nvx, sim_graph_t node, uint8_t *vx,
 static player_t sim_graph_winner(sim_nvertex_t *nvx, sim_graph_t node) {
     //printf("sim_graph_winner\n");
     uint8_t nedges_max = sim_graph_nedges_max(nvx);
-    uint8_t *vx = malloc(nedges_max * sizeof(uint8_t));
-    for (size_t edge = 0; edge < nedges_max; ++edge)
-        vx[edge] = edge;
+    uint8_t *vx = malloc(*nvx * sizeof(uint8_t));
+    for (size_t n = 0; n < *nvx; ++n)
+        vx[n] = n;
     uint8_t *choice = malloc(3 * sizeof(uint8_t));
     int8_t loser = triangle_search(nvx, node, vx, choice, 0, *nvx - 1, 0, 3);
     //printf("sim_graph_winner: finished triangle_search\n");
